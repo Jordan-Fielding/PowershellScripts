@@ -1,4 +1,4 @@
-﻿[CmdletBinding(DefaultParameterSetName = "Default")]
+[CmdletBinding(DefaultParameterSetName = "Default")]
 param(
     [Parameter(
         Mandatory = $false,
@@ -22,7 +22,7 @@ param(
         ParameterSetName = "Licensed"
     )]
     # Check only the MFA status of users that have license
-    [switch]$IsLicensed = $true,
+    [switch]$IsLicensed = $false,
 
     [Parameter(
         Mandatory = $false,
@@ -44,7 +44,7 @@ param(
         Mandatory = $false,
         HelpMessage = "Enter path to save the CSV file"
     )]
-    [string]$path = ".\MFAStatus-$((Get-Date -format "MMM-dd-yyyy").ToString()).csv"
+    [string]$path = ".\$p-MFAStatus-$((Get-Date -format "MMM-dd-yyyy").ToString()).csv"
 )
 
 Function ConnectTo-MgGraph {
@@ -105,7 +105,6 @@ Function ConnectTo-DMARC {
 
     # Connect to Graph
     Write-Host "Connecting to Microsoft EXO" -ForegroundColor Cyan
-    Connect-exchangeonline
 }
 
 Function Get-Admins {
@@ -346,6 +345,8 @@ $admins = $null
 if (($listAdmins) -or ($adminsOnly)) {
     $admins = Get-Admins
 } 
+
+$p = Get-AcceptedDomain
 
 # Get MFA Status
 Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
