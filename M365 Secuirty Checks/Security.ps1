@@ -102,9 +102,6 @@ Function ConnectTo-DMARC {
             exit
         } 
     }
-
-    # Connect to Graph
-    Write-Host "Connecting to Microsoft EXO" -ForegroundColor Cyan
 }
 
 Function Get-Admins {
