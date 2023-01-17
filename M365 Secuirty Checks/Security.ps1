@@ -471,23 +471,23 @@ DisconnectSessions
 # Used to decided with Tests to Run, All = AllTests, MFA = MFATests, Security = SecurityTests, Domain = DomainTests
 Function StartTests {
 DisconnectSessions
-Write-Host "Which Test would you like to run `nFor All Tests: All `nFor MFA Only: MFA `nFor M365 Secuirty Checks only: Security `nFor Domain Checks only: Domain" -ForegroundColor Black -BackgroundColor Yellow
+Write-Host "Which Test would you like to run `nFor All Tests: All or A `nFor MFA Only: MFA or M `nFor M365 Secuirty Checks only: Security or S `nFor Domain Checks only: Domain or D" -ForegroundColor Black -BackgroundColor Yellow
 $answer = Read-Host "Selection:"
-if ($answer -match "All") {
+if ($answer -match "[All A]") {
     AllTests
 }
 
-if ($answer -match "MFA") {
+if ($answer -match "[MFA M]") {
     MFATests
 }
 
 
 
-if ($answer -match "Security") {
+if ($answer -match "[Security S]") {
     SecurityTests
 }
 
-if ($answer -match "Domain") {
+if ($answer -match "[Domain D]") {
     DomainTests
 }
 }
