@@ -329,6 +329,14 @@ Function Get-MFAStatusUsers {
     }
 }
 
+
+Write-Host "Which Test would you like to run `nFor All Tests: All `nFor MFA Only: MFA `nFor M365 Secuirty Checks only: Security `nFor Domain Checks only: Domain" -ForegroundColor Black -BackgroundColor Yellow
+$answer = Read-Host "Selection:"
+if ($answer -match "All") {
+
+    mkdir C:\MHC
+    Set-Location C:\MHC
+    # Connect To Azure AD
 # Connect to Graph
 ConnectTo-MgGraph
 
@@ -338,29 +346,30 @@ ConnectTo-EXO
 #Connect to DMARC
 ConnectTo-DMARC
 
-# Get Admins
-# Get all users with admin role
-$admins = $null
 
-if (($listAdmins) -or ($adminsOnly)) {
+$Dir = Read-Host "Company Name?"
+    mkdir $Dir
+    Set-Location $dir
+    $admins = $null
+
+    if (($listAdmins) -or ($adminsOnly)) {
     $admins = Get-Admins
-} 
+    } 
 
-$p = Get-AcceptedDomain
+    $p = Get-AcceptedDomain
 
-# Get MFA Status
-Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
+    # Get MFA Status
+    Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
 
-if ((Get-Item $path).Length -gt 0) {
-    Write-Host "Report finished and saved in $path" -ForegroundColor Green
-
-    # Open the CSV file
-    Invoke-Item $path
-}
-else {
-    Write-Host "Failed to create report" -ForegroundColor Red
-}
-
+    if ((Get-Item $path).Length -gt 0) {
+        Write-Host "Report finished and saved in $path" -ForegroundColor Green
+    
+        # Open the CSV file
+        Invoke-Item $path
+        }
+        else {
+        Write-Host "Failed to create report" -ForegroundColor Red
+        }
 
 
 $s = Get-MgPolicyIdentitySecurityDefaultEnforcementPolicy
@@ -402,6 +411,117 @@ $z = Get-QuarantinePolicy
 Write-Host "------ Quaratine Policy ------"
 $z | foreach { Write-host ("Name:", $_.Name, "`nQuaratine Permissions", $_.EndUserQuarantinePermissions, "`nNotifications:", $_.ESNEnabled, "`n") }
 "`n`n"
+Set-Location C:\MHC
 Write-Host "Disconnecting Exchange Online"
 Disconnect-ExchangeOnline
 Disconnect-MgGraph
+}
+
+if ($answer -match "MFA") {
+    mkdir C:\MHC
+    Set-Location C:\MHC
+   # Connect to Graph
+ConnectTo-MgGraph 
+#Connect to EXO
+ConnectTo-EXO
+
+$Dir = Read-Host "Company Name?"
+    mkdir $Dir
+    Set-Location $dir
+    $admins = $null
+
+    if (($listAdmins) -or ($adminsOnly)) {
+    $admins = Get-Admins
+    } 
+
+    $p = Get-AcceptedDomain
+
+    # Get MFA Status
+    Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
+
+    if ((Get-Item $path).Length -gt 0) {
+    Write-Host "Report finished and saved in $path" -ForegroundColor Green
+
+    # Open the CSV file
+    Invoke-Item $path
+    }
+    else {
+    Write-Host "Failed to create report" -ForegroundColor Red
+    }
+    Set-Location C:\MHC
+    Disconnect-ExchangeOnline
+    Disconnect-MgGraph
+}
+
+
+
+if ($answer -match "Security") {
+    # Connect to Graph
+ConnectTo-MgGraph
+    #Connect to EXO
+ConnectTo-EXO
+
+$s = Get-MgPolicyIdentitySecurityDefaultEnforcementPolicy
+Write-Host "------ Secuity Defaults ------"
+$s | foreach { write-host ("Secuirty Defaults Enabled:", $_.IsEnabled, "`n") }
+"`n`n"
+
+$u = Get-MgIdentityConditionalAccessPolicy
+Write-Host "------ Conditional Access ------"
+$u | foreach { write-host ("Name:", $_.DisplayName, "`nState:", $_.State, "`n") }
+"`n`n"
+
+$x = Get-HostedContentFilterPolicy
+Write-Host "------ Spam Policy ------"
+$x | foreach { write-host ("Name:", $_.Name, "`nBackscatter:", $_.MarkAsSpamNdrBackscatter, "`nSPF Hard Fail:", $_.MarkAsSpamSpfRecordHardFail, "`nSender ID Hard Fail:", $_.MarkAsSpamFromAddressAuthFail, "`nQuaratinePolicy:", $_.SpamQuarantineTag, "`n") }
+"`n`n"
+
+$y = Get-MalwareFilterPolicy
+Write-host "------ Malware Policy ------"
+$y |  foreach { write-host ("Name:", $_.Name, "`nCommon Attachment Types Filter:", $_.EnableFileFilter, "`nFile Types:", $_.FileTypes, "`nPolicy Created:", $_.WhenCreated, "`nPolicy Last Changed:", $_.WhenChanged, "`n" ) }
+"`n`n"
+
+$z = Get-QuarantinePolicy
+Write-Host "------ Quaratine Policy ------"
+$z | foreach { Write-host ("Name:", $_.Name, "`nQuaratine Permissions", $_.EndUserQuarantinePermissions, "`nNotifications:", $_.ESNEnabled, "`n") }
+"`n`n"
+
+$v = Get-AcceptedDomain
+Write-Host "------ Accepted Domains  ------"
+$v | foreach { write-host ("Name:", $_.Name, "`nValid:", $_.IsValid, "`n") }
+"`n`n"
+
+$w = get-dkimsigningconfig
+Write-Host "------ DKIM Config (Enabled  Domains Only) ------"
+$w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") }
+"`n`n"
+Write-Host "Disconnecting Exchange Online"
+Disconnect-ExchangeOnline
+Disconnect-MgGraph
+}
+
+if ($answer -match "Domain") {
+    #Connect to EXO
+ConnectTo-EXO
+
+#Connect to DMARC
+ConnectTo-DMARC
+
+$v = Get-AcceptedDomain
+Write-Host "------ Accepted Domains  ------"
+$v | foreach { write-host ("Name:", $_.Name, "`nValid:", $_.IsValid, "`n") }
+"`n`n"
+
+$w = get-dkimsigningconfig
+Write-Host "------ DKIM Config (Enabled  Domains Only) ------"
+$w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") }
+"`n`n"
+
+$d = Get-AcceptedDomain
+Write-Host "------DMARC Config------"
+$d | foreach { get-DMARCRecord $_.name | FL}
+
+Disconnect-ExchangeOnline
+}
+
+
