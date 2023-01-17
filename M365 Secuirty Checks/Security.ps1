@@ -396,7 +396,7 @@ $x | foreach { write-host ("Name:", $_.Name, "`nBackscatter:", $_.MarkAsSpamNdrB
 
 $y = Get-MalwareFilterPolicy
 Write-host "------ Malware Policy ------"
-$y |  foreach { write-host ("Name:", $_.Name, "`nCommon Attachment Types Filter:", $_.EnableFileFilter, "`nFile Types:", $_.FileTypes, "`nPolicy Created:", $_.WhenCreated, "`nPolicy Last Changed:", $_.WhenChanged, "`nQuarantine Policy", $_.QuarantineTag "`n" ) }
+$y |  foreach { write-host ("Name:", $_.Name, "`nCommon Attachment Types Filter:", $_.EnableFileFilter, "`nFile Types:", $_.FileTypes, "`nPolicy Created:", $_.WhenCreated, "`nPolicy Last Changed:", $_.WhenChanged, "`nQuarantine Policy", $_.QuarantineTag, "`n" ) }
 "`n`n"
 
 $z = Get-QuarantinePolicy
