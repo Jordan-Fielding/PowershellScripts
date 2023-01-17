@@ -287,7 +287,7 @@ Function Get-MFAStatusUsers {
         $users = Get-Users
     
         Write-Host "Processing" $users.count "users" -ForegroundColor Cyan
-
+        $UserNo = 1
         # Collect and loop through all users
         $users | ForEach {
       
@@ -325,15 +325,17 @@ Function Get-MFAStatusUsers {
                     "Email for SSPR"        = $mfaMethods.SSPREmail
                 }
             }
+            
+            
+            Write-Progress -Activity "Processing Users" -Status "User Number $UserNo" -PercentComplete ($UserNo / $users.count * 100)
+            Start-Sleep -Milliseconds 50
+            $UserNo++
         }
     }
 }
 
-
-Write-Host "Which Test would you like to run `nFor All Tests: All `nFor MFA Only: MFA `nFor M365 Secuirty Checks only: Security `nFor Domain Checks only: Domain" -ForegroundColor Black -BackgroundColor Yellow
-$answer = Read-Host "Selection:"
-if ($answer -match "All") {
-
+Function AllTests {
+    
     mkdir C:\MHC
     Set-Location C:\MHC
     # Connect To Azure AD
@@ -417,7 +419,7 @@ Disconnect-ExchangeOnline
 Disconnect-MgGraph
 }
 
-if ($answer -match "MFA") {
+Function MFATests {
     mkdir C:\MHC
     Set-Location C:\MHC
    # Connect to Graph
@@ -453,12 +455,10 @@ $Dir = Read-Host "Company Name?"
     Disconnect-MgGraph
 }
 
-
-
-if ($answer -match "Security") {
-    # Connect to Graph
+Function SecurityTests {
+        # Connect to Graph
 ConnectTo-MgGraph
-    #Connect to EXO
+#Connect to EXO
 ConnectTo-EXO
 
 $s = Get-MgPolicyIdentitySecurityDefaultEnforcementPolicy
@@ -500,8 +500,8 @@ Disconnect-ExchangeOnline
 Disconnect-MgGraph
 }
 
-if ($answer -match "Domain") {
-    #Connect to EXO
+Function DomainTests {
+        #Connect to EXO
 ConnectTo-EXO
 
 #Connect to DMARC
@@ -524,4 +524,29 @@ $d | foreach { get-DMARCRecord $_.name | FL}
 Disconnect-ExchangeOnline
 }
 
+# Used to decided with Tests to Run, All = AllTests, MFA = MFATests, Security = SecurityTests, Domain = DomainTests
+Function StartTests {
+Write-Host "Which Test would you like to run `nFor All Tests: All `nFor MFA Only: MFA `nFor M365 Secuirty Checks only: Security `nFor Domain Checks only: Domain" -ForegroundColor Black -BackgroundColor Yellow
+$answer = Read-Host "Selection:"
+if ($answer -match "All") {
+    AllTests
+}
+
+if ($answer -match "MFA") {
+    MFATests
+}
+
+
+
+if ($answer -match "Security") {
+    SecurityTests
+}
+
+if ($answer -match "Domain") {
+    DomainTests
+}
+}
+
+#Starts Script
+StartTests
 
