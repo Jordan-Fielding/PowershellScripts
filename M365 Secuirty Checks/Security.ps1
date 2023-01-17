@@ -391,12 +391,12 @@ $u | foreach { write-host ("Name:", $_.DisplayName, "`nState:", $_.State, "`n") 
 
 $x = Get-HostedContentFilterPolicy
 Write-Host "------ Spam Policy ------"
-$x | foreach { write-host ("Name:", $_.Name, "`nBackscatter:", $_.MarkAsSpamNdrBackscatter, "`nSPF Hard Fail:", $_.MarkAsSpamSpfRecordHardFail, "`nSender ID Hard Fail:", $_.MarkAsSpamFromAddressAuthFail, "`nQuaratinePolicy:", $_.SpamQuarantineTag, "`n") }
+$x | foreach { write-host ("Name:", $_.Name, "`nBackscatter:", $_.MarkAsSpamNdrBackscatter, "`nSPF Hard Fail:", $_.MarkAsSpamSpfRecordHardFail, "`nSender ID Hard Fail:", $_.MarkAsSpamFromAddressAuthFail, "`nSpam Quaratine Policy:", $_.SpamQuarantineTag, "`nHigh Confidence Spam Quarantine Tag:", $_.HighConfidenceSpamQuarantineTag, "`nPhish Quarantine Tag:", $_.PhishQuarantineTag, "`nHigh Confidence Phish Quarantine Tag:", $_.HighConfidencePhishQuarantineTag, "`nBulk Quarantine Tag", $_.BulkQuarantineTag, "`n") }
 "`n`n"
 
 $y = Get-MalwareFilterPolicy
 Write-host "------ Malware Policy ------"
-$y |  foreach { write-host ("Name:", $_.Name, "`nCommon Attachment Types Filter:", $_.EnableFileFilter, "`nFile Types:", $_.FileTypes, "`nPolicy Created:", $_.WhenCreated, "`nPolicy Last Changed:", $_.WhenChanged, "`n" ) }
+$y |  foreach { write-host ("Name:", $_.Name, "`nCommon Attachment Types Filter:", $_.EnableFileFilter, "`nFile Types:", $_.FileTypes, "`nPolicy Created:", $_.WhenCreated, "`nPolicy Last Changed:", $_.WhenChanged, "`nQuarantine Policy", $_.QuarantineTag "`n" ) }
 "`n`n"
 
 $z = Get-QuarantinePolicy
