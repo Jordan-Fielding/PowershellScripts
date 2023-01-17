@@ -331,11 +331,8 @@ Function Get-MFAStatusUsers {
     }
 }
 
-Function AllTests {
-    
-    mkdir C:\MHC
-    Set-Location C:\MHC
-    # Connect To Azure AD
+Function ConnectSessions {
+Write-host "CONNECTING TO SESSIONS" -ForegroundColor Black -BackgroundColor Green
 # Connect to Graph
 ConnectTo-MgGraph
 
@@ -344,33 +341,44 @@ ConnectTo-EXO
 
 #Connect to DMARC
 ConnectTo-DMARC
-
-
-$Dir = Read-Host "Company Name?"
-    mkdir $Dir
-    Set-Location $dir
-    $admins = $null
-
-    if (($listAdmins) -or ($adminsOnly)) {
-    $admins = Get-Admins
-    } 
-
-    $p = Get-AcceptedDomain
-
-    # Get MFA Status
-    Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
-
-    if ((Get-Item $path).Length -gt 0) {
-        Write-Host "Report finished and saved in $path" -ForegroundColor Green
+}
+Function DisconnectSessions {
+Write-host "DISCONNECTING PERVIOUS SESSIONS" -ForegroundColor Black -BackgroundColor Red
+#Disconnect From Services
+Disconnect-ExchangeOnline
+Disconnect-MgGraph
+}
+Function MFAReport {
+    mkdir C:\MHC
+    Set-Location C:\MHC
     
-        # Open the CSV file
-        Invoke-Item $path
-        }
-        else {
-        Write-Host "Failed to create report" -ForegroundColor Red
-        }
+    $Dir = Read-Host "Company Name?"
+        mkdir $Dir
+        Set-Location $dir
+        $admins = $null
+    
+        if (($listAdmins) -or ($adminsOnly)) {
+        $admins = Get-Admins
+        } 
+    
+        $p = Get-AcceptedDomain
+    
+        # Get MFA Status
+        Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
+    
+        if ((Get-Item $path).Length -gt 0) {
+            Write-Host "Report finished and saved in $path" -ForegroundColor Green
+        
+            # Open the CSV file
+            Invoke-Item $path
+            }
+            else {
+            Write-Host "Failed to create report" -ForegroundColor Red
+            }
+        Set-Location C:\MHC
+}
 
-
+Function SecuirtyReport {
 $s = Get-MgPolicyIdentitySecurityDefaultEnforcementPolicy
 Write-Host "------ Secuity Defaults ------"
 $s | foreach { write-host ("Secuirty Defaults Enabled:", $_.IsEnabled, "`n") }
@@ -380,21 +388,6 @@ $u = Get-MgIdentityConditionalAccessPolicy
 Write-Host "------ Conditional Access ------"
 $u | foreach { write-host ("Name:", $_.DisplayName, "`nState:", $_.State, "`n") }
 "`n`n"
-
-
-$v = Get-AcceptedDomain
-Write-Host "------ Accepted Domains  ------"
-$v | foreach { write-host ("Name:", $_.Name, "`nValid:", $_.IsValid, "`n") }
-"`n`n"
-
-$w = get-dkimsigningconfig
-Write-Host "------ DKIM Config (Enabled  Domains Only) ------"
-$w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") }
-"`n`n"
-
-$d = Get-AcceptedDomain
-Write-Host "------DMARC Config------"
-$d | foreach { get-DMARCRecord $_.name | FL}
 
 $x = Get-HostedContentFilterPolicy
 Write-Host "------ Spam Policy ------"
@@ -410,119 +403,74 @@ $z = Get-QuarantinePolicy
 Write-Host "------ Quaratine Policy ------"
 $z | foreach { Write-host ("Name:", $_.Name, "`nQuaratine Permissions", $_.EndUserQuarantinePermissions, "`nNotifications:", $_.ESNEnabled, "`n") }
 "`n`n"
-Set-Location C:\MHC
-Write-Host "Disconnecting Exchange Online"
-Disconnect-ExchangeOnline
-Disconnect-MgGraph
+}
+
+Function DomainReport {
+    $v = Get-AcceptedDomain
+    Write-Host "------ Accepted Domains  ------"
+    $v | foreach { write-host ("Name:", $_.Name, "`nValid:", $_.IsValid, "`n") }
+    "`n`n"
+    
+    $w = get-dkimsigningconfig
+    Write-Host "------ DKIM Config (Enabled  Domains Only) ------"
+    $w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") }
+    "`n`n"
+    
+    $d = Get-AcceptedDomain
+    Write-Host "------DMARC Config------"
+    $d | foreach { get-DMARCRecord $_.name | FL}
+        
+}
+
+Function AllTests {
+
+#Connect Sessions 
+ConnectSessions
+
+#Start MFA Report 
+MFAReport
+
+#Start Security Report 
+SecuirtyReport
+
+#Start Domain Report
+DomainReport
+
+#Disconnect From Services
+DisconnectSessions
 }
 
 Function MFATests {
-    mkdir C:\MHC
-    Set-Location C:\MHC
-   # Connect to Graph
-ConnectTo-MgGraph 
-#Connect to EXO
-ConnectTo-EXO
+   
+ConnectSessions
+#Start MFA Report 
+MFAReport
 
-$Dir = Read-Host "Company Name?"
-    mkdir $Dir
-    Set-Location $dir
-    $admins = $null
-
-    if (($listAdmins) -or ($adminsOnly)) {
-    $admins = Get-Admins
-    } 
-
-    $p = Get-AcceptedDomain
-
-    # Get MFA Status
-    Get-MFAStatusUsers | Sort-Object Name | Export-CSV -Path $path -NoTypeInformation
-
-    if ((Get-Item $path).Length -gt 0) {
-    Write-Host "Report finished and saved in $path" -ForegroundColor Green
-
-    # Open the CSV file
-    Invoke-Item $path
-    }
-    else {
-    Write-Host "Failed to create report" -ForegroundColor Red
-    }
-    Set-Location C:\MHC
-    Disconnect-ExchangeOnline
-    Disconnect-MgGraph
+#Disconnect From Services
+DisconnectSessions
 }
 
 Function SecurityTests {
-        # Connect to Graph
-ConnectTo-MgGraph
-#Connect to EXO
-ConnectTo-EXO
+    ConnectSessions
+#Start Security report
+SecuirtyReport
 
-$s = Get-MgPolicyIdentitySecurityDefaultEnforcementPolicy
-Write-Host "------ Secuity Defaults ------"
-$s | foreach { write-host ("Secuirty Defaults Enabled:", $_.IsEnabled, "`n") }
-"`n`n"
-
-$u = Get-MgIdentityConditionalAccessPolicy
-Write-Host "------ Conditional Access ------"
-$u | foreach { write-host ("Name:", $_.DisplayName, "`nState:", $_.State, "`n") }
-"`n`n"
-
-$x = Get-HostedContentFilterPolicy
-Write-Host "------ Spam Policy ------"
-$x | foreach { write-host ("Name:", $_.Name, "`nBackscatter:", $_.MarkAsSpamNdrBackscatter, "`nSPF Hard Fail:", $_.MarkAsSpamSpfRecordHardFail, "`nSender ID Hard Fail:", $_.MarkAsSpamFromAddressAuthFail, "`nQuaratinePolicy:", $_.SpamQuarantineTag, "`n") }
-"`n`n"
-
-$y = Get-MalwareFilterPolicy
-Write-host "------ Malware Policy ------"
-$y |  foreach { write-host ("Name:", $_.Name, "`nCommon Attachment Types Filter:", $_.EnableFileFilter, "`nFile Types:", $_.FileTypes, "`nPolicy Created:", $_.WhenCreated, "`nPolicy Last Changed:", $_.WhenChanged, "`n" ) }
-"`n`n"
-
-$z = Get-QuarantinePolicy
-Write-Host "------ Quaratine Policy ------"
-$z | foreach { Write-host ("Name:", $_.Name, "`nQuaratine Permissions", $_.EndUserQuarantinePermissions, "`nNotifications:", $_.ESNEnabled, "`n") }
-"`n`n"
-
-$v = Get-AcceptedDomain
-Write-Host "------ Accepted Domains  ------"
-$v | foreach { write-host ("Name:", $_.Name, "`nValid:", $_.IsValid, "`n") }
-"`n`n"
-
-$w = get-dkimsigningconfig
-Write-Host "------ DKIM Config (Enabled  Domains Only) ------"
-$w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") }
-"`n`n"
-Write-Host "Disconnecting Exchange Online"
-Disconnect-ExchangeOnline
-Disconnect-MgGraph
+#Disconnect From Services
+DisconnectSessions
 }
 
 Function DomainTests {
-        #Connect to EXO
-ConnectTo-EXO
+    ConnectSessions
+#Start Domain Report
+DomainReport
 
-#Connect to DMARC
-ConnectTo-DMARC
-
-$v = Get-AcceptedDomain
-Write-Host "------ Accepted Domains  ------"
-$v | foreach { write-host ("Name:", $_.Name, "`nValid:", $_.IsValid, "`n") }
-"`n`n"
-
-$w = get-dkimsigningconfig
-Write-Host "------ DKIM Config (Enabled  Domains Only) ------"
-$w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") }
-"`n`n"
-
-$d = Get-AcceptedDomain
-Write-Host "------DMARC Config------"
-$d | foreach { get-DMARCRecord $_.name | FL}
-
-Disconnect-ExchangeOnline
+#Disconnect from services
+DisconnectSessions
 }
 
 # Used to decided with Tests to Run, All = AllTests, MFA = MFATests, Security = SecurityTests, Domain = DomainTests
 Function StartTests {
+DisconnectSessions
 Write-Host "Which Test would you like to run `nFor All Tests: All `nFor MFA Only: MFA `nFor M365 Secuirty Checks only: Security `nFor Domain Checks only: Domain" -ForegroundColor Black -BackgroundColor Yellow
 $answer = Read-Host "Selection:"
 if ($answer -match "All") {
