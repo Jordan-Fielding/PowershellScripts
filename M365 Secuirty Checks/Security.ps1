@@ -419,7 +419,18 @@ Function DomainReport {
     $d = Get-AcceptedDomain
     Write-Host "------DMARC Config------"
     $d | foreach { get-DMARCRecord $_.name | FL}
+    
+    Write-Host "Would you like to try and enable DKIM for all domains now? `nIf the domains still show disabled after this please check DNS Records" -ForegroundColor Black -BackgroundColor Yellow
+    $dkimset = Read-Host " Y/N"
+    if ($dkimset -match "[yY]") {
+        $getdkim = get-dkimsigningconfig
+        $getdkim | foreach { 
+            Set-DkimSigningConfig -Identity $_.Name -Enabled $true
+         }
+         $w | foreach { write-host ("Name:", $_.Name, "`nEnabled:", $_.Enabled, "`n") -ForegroundColor Black -BackgroundColor Green }
         
+        
+    }
 }
 
 Function AllTests {
@@ -494,4 +505,3 @@ if ($answer -match "[Domain 4]") {
 
 #Starts Script
 StartTests
-
