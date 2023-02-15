@@ -115,7 +115,7 @@ Function Get-Admins {
             where { $_.AdditionalProperties."@odata.type" -eq "#microsoft.graph.user" } | 
             % { Get-MgUser -userid $_.id | Where-Object { ($_.AssignedLicenses).count -gt 0 } }
         } | 
-        Select @{Name = "Role"; Expression = { $role } }, DisplayName, UserPrincipalName, Mail, ObjectId | Sort-Object -Property Mail -Unique
+        Select-Object @{Name = "Role"; Expression = { $role } }, DisplayName, UserPrincipalName, Mail, ObjectId | Sort-Object -Property Mail -Unique
     
         return $admins
     }
@@ -355,7 +355,7 @@ Function MFAReport {
     $Dir = Read-Host "Company Name?"
         mkdir $Dir
         Set-Location $dir
-        $admins = $null
+        $admins = $true
     
         if (($listAdmins) -or ($adminsOnly)) {
         $admins = Get-Admins
@@ -480,7 +480,7 @@ DisconnectSessions
 }
 
 # Used to decided with Tests to Run, All = AllTests, MFA = MFATests, Security = SecurityTests, Domain = DomainTests
-Function StartTests {
+Function StartSecurityTests {
 DisconnectSessions
 Write-Host "Which Test would you like to run `nFor All Tests: All or 1 `nFor MFA Only: MFA or 2 `nFor M365 Secuirty Checks only: Security or 3 `nFor Domain Checks only: Domain or 4" -ForegroundColor Black -BackgroundColor Yellow
 $answer = Read-Host "Selection:"
@@ -504,4 +504,4 @@ if ($answer -match "[Domain 4]") {
 }
 
 #Starts Script
-StartTests
+StartSecurityTests
