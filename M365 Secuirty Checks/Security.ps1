@@ -349,8 +349,8 @@ Disconnect-ExchangeOnline
 Disconnect-MgGraph
 }
 Function MFAReport {
-    mkdir C:\MHC
-    Set-Location C:\MHC
+    mkdir C:\TESTS
+    Set-Location C:\TESTS
     
     $Dir = Read-Host "Company Name?"
         mkdir $Dir
