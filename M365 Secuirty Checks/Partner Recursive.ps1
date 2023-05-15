@@ -55,7 +55,7 @@ Function Mainscript {
     
     Process {
     # Create the directory if it doesn't exist
-    
+    $TenantNo = 1
     # Output the properties to the CSV file
     foreach ($tenantId in $tenantIds) {
     $CustomerDomains = Get-MsolDomain -TenantId $tenantId | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
@@ -94,6 +94,9 @@ Function Mainscript {
             'DKIM - Enabled' = ($DKIM.Enabled -join ', ')
             # 'DMARC - DMARC' = ($DMARC -join ', ')
             }
+        Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo"
+        Start-Sleep -Milliseconds 50
+        $TenantNo++
         }
     }
     }
@@ -108,6 +111,7 @@ $directory = Split-Path -Path $csvFile
     New-Item -ItemType Directory -Path $directory | Out-Null
     }
 ConnectTo-MSOnline
+ConnectTo-EXO
 $tenantIds = Get-MsolPartnerContract -All | Select-Object -ExpandProperty TenantId
 Mainscript | Export-CSV -Path $csvFile -NoTypeInformation
 
