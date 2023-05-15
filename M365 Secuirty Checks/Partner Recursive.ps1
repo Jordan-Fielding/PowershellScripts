@@ -1,15 +1,46 @@
-Write-Host "Please input your Partner account to login"
-$UPN = "jordanf@centra.com.au"
-$csvFile = "C:\Files\Test.csv"
-# "Spam - Company Domain,Spam - Identity,Spam - MarkAsSpamNdrBackscatter,Spam - MarkAsSpamSpfRecordHardFail,Spam - MarkAsSpamFromAddressAuthFail,Spam - SpamQuarantineTag,Spam - HighConfidenceSpamQuarantineTag,Spam - PhishQuarantineTag,Spam - HighConfidencePhishQuarantineTag,Spam - BulkQuarantineTag,Malware - Identity,Malware - Common Attachment Types Filter,Malware - Policy Created,Malware - Policy Last Changed,Malware - Quaratine Tag,Quarantine - Identity,Quarantine - End User Permissions,Quarantine - Notification" | Set-Content $csvFile
-Connect-MsolService
-$tenantIds = Get-MsolPartnerContract -All | Select-Object -ExpandProperty TenantId
 
+
+Function ConnectTo-EXO {
+    # Check if MS EXO module is installed
+    if (-not(Get-InstalledModule ExchangeOnlineManagement)) { 
+        Write-Host "Microsoft EXO module not found" -ForegroundColor Black -BackgroundColor Yellow
+        $install = Read-Host "Do you want to install the Microsoft EXO Module?"
+
+        if ($install -match "[yY]") {
+            Install-Module ExchangeOnlineManagement -Repository PSGallery -Scope CurrentUser -AllowClobber -Force
+        }
+        else {
+            Write-Host "Microsoft EXO module is required." -ForegroundColor Black -BackgroundColor Yellow
+            exit
+        } 
+    }
+    #    # Connect to EXO
+    #    Write-Host "Connecting to Microsoft EXO" -ForegroundColor Cyan
+    #    Connect-exchangeonline
+}
+Function ConnectTo-MSOnline {
+    # Check if MS Msol module is installed
+    if (-not(Get-InstalledModule MSOnline)) { 
+        Write-Host "Microsoft Msol module not found" -ForegroundColor Black -BackgroundColor Yellow
+        $install = Read-Host "Do you want to install the Microsoft Msol Module?"
+
+        if ($install -match "[yY]") {
+            Install-Module MSOnline
+        }
+        else {
+            Write-Host "Microsoft Msol module is required." -ForegroundColor Black -BackgroundColor Yellow
+            exit
+        } 
+    }
+   # Connect to EXO
+   Write-Host "Connecting to Microsoft Msol" -ForegroundColor Cyan
+   Connect-MsolService
+}
 Function ConnectTo-DMARC {
-    # Check if MS Graph module is installed
+    # Check if Microsoft DomainHealthChecker module is installed
     if (-not(Get-InstalledModule DomainHealthChecker)) { 
         Write-Host "Microsoft DomainHealthChecker module not found" -ForegroundColor Black -BackgroundColor Yellow
-        $install = Read-Host "Do you want to install the Microsoft EXO Module?"
+        $install = Read-Host "Do you want to install the DomainHealthChecker?"
 
         if ($install -match "[yY]") {
             Install-Module DomainHealthChecker -Repository PSGallery -Scope CurrentUser -AllowClobber -Force
@@ -21,29 +52,34 @@ Function ConnectTo-DMARC {
     }
 }
 Function Mainscript {
+    
     Process {
-# Output the properties to the CSV file
-foreach ($tenantId in $tenantIds) {
+    # Create the directory if it doesn't exist
+    
+    # Output the properties to the CSV file
+    foreach ($tenantId in $tenantIds) {
     $CustomerDomains = Get-MsolDomain -TenantId $tenantId | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
 
     foreach ($CustomerDomain in $CustomerDomains) {
         Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
         $Spam = Get-HostedContentFilterPolicy
-        $MalwareProcess = Get-MalwareFilterPolicy
+        $Malware = Get-MalwareFilterPolicy
         $Quarantine = Get-QuarantinePolicy
-        $Domain = Get-AcceptedDomain
         $DKIM = Get-DkimSigningConfig
+        # $Domains = Get-AcceptedDomain
+        # $DMARC = foreach ($Domain in $Domains) {
+            # (Get-DMARCRecord  $Domain) }
         [pscustomobject]@{
             'Spam - Company Domain' = ($CustomerDomain -join ', ')
             'Spam - Identity' = ($Spam.Identity -join ', ')
-            'Spam - MarkAsSpamNdrBackscatter' = $Spam.MarkAsSpamNdrBackscatter
-            'Spam - MarkAsSpamSpfRecordHardFail' = $Spam.MarkAsSpamSpfRecordHardFail
-            'Spam - MarkAsSpamFromAddressAuthFail' = $Spam.MarkAsSpamFromAddressAuthFail
-            'Spam - SpamQuarantineTag' = $Spam.SpamQuarantineTag
-            'Spam - HighConfidenceSpamQuarantineTag' = $Spam.HighConfidenceSpamQuarantineTag
-            'Spam - PhishQuarantineTag' = $Spam.PhishQuarantineTag
-            'Spam - HighConfidencePhishQuarantineTag' = $Spam.HighConfidencePhishQuarantineTag
-            'Spam - BulkQuarantineTag' = $Spam.BulkQuarantineTag
+            'Spam - MarkAsSpamNdrBackscatter' = ($Spam.MarkAsSpamNdrBackscatter -join ', ')
+            'Spam - MarkAsSpamSpfRecordHardFail' = ($Spam.MarkAsSpamSpfRecordHardFail -join ', ')
+            'Spam - MarkAsSpamFromAddressAuthFail' = ($Spam.MarkAsSpamFromAddressAuthFail -join ', ')
+            'Spam - SpamQuarantineTag' = ($Spam.SpamQuarantineTag -join ', ')
+            'Spam - HighConfidenceSpamQuarantineTag' = ($Spam.HighConfidenceSpamQuarantineTag -join ', ')
+            'Spam - PhishQuarantineTag' = ($Spam.PhishQuarantineTag -join ', ')
+            'Spam - HighConfidencePhishQuarantineTag' = ($Spam.HighConfidencePhishQuarantineTag -join ', ')
+            'Spam - BulkQuarantineTag' = ($Spam.BulkQuarantineTag -join ', ')
             'Malware - Identity' = ($Malware.Name -join ', ')
             'Malware - Common Attachment Types Filter' = ($Malware.EnableFileFilter -join ', ')
             'Malware - Policy Created' = ($Malware.WhenCreated -join ', ')
@@ -56,17 +92,24 @@ foreach ($tenantId in $tenantIds) {
             'Domain - Domain Enabled?' = ($Domain.IsValid -join ', ')
             'DKIM - Identity' = ($DKIM.Name -join ', ')
             'DKIM - Enabled' = ($DKIM.Enabled -join ', ')
-            # 'DMARC - DMARC' = $d = Get-AcceptedDomain
+            # 'DMARC - DMARC' = ($DMARC -join ', ')
+            }
         }
     }
     }
 
     }
-}
-ConnectTo-DMARC
-Mainscript | Export-CSV -Path $csvFile -NoTypeInformation
 
- 
+# ConnectTo-DMARC
+$UPN = Read-Host "What is your email?"
+$csvFile = "C:\Files\Test.csv"
+$directory = Split-Path -Path $csvFile
+    if (-not (Test-Path -Path $directory)) {
+    New-Item -ItemType Directory -Path $directory | Out-Null
+    }
+ConnectTo-MSOnline
+$tenantIds = Get-MsolPartnerContract -All | Select-Object -ExpandProperty TenantId
+Mainscript | Export-CSV -Path $csvFile -NoTypeInformation
 
 
 
