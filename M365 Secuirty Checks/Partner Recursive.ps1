@@ -57,15 +57,20 @@ Function Mainscript {
     # Create the directory if it doesn't exist
     $TenantNo = 1
     # Output the properties to the CSV file
-    foreach ($tenantId in $tenantIds) {
-    $CustomerDomains = Get-MsolDomain -TenantId $tenantId | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
+    $batchSize = 10  # Set the desired batch siz
+    # Split the array into smaller chunks$
+    $chunks = for ($i = 0; $i -lt $TenantIds.Count; $i += $batchSize) {
+    $TenantIds[$i..($i + $batchSize - 1)]
+}
+    foreach ($chunk in $chunks) {
+    $CustomerDomains = Get-MsolDomain -TenantId $chunk | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
 
     foreach ($CustomerDomain in $CustomerDomains) {
         $CustomerCount = $tenantIds.count
         try {
         #Handels error "C:\Users\jordanf\AppData\Local\Temp\tmpEXO_cw4siuc3.dr5\exchange.format.ps1xml missing"
         if(Get-InstalledModule ExchangeOnlineManagement){
-            Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
+        Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
         $Spam = Get-HostedContentFilterPolicy
         $Malware = Get-MalwareFilterPolicy
         $Quarantine = Get-QuarantinePolicy
