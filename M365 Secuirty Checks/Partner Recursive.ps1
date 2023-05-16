@@ -64,21 +64,22 @@ Function Mainscript {
 }
     foreach ($chunk in $chunks) {
     $CustomerDomains = Get-MsolDomain -TenantId $chunk | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
+    
 
     foreach ($CustomerDomain in $CustomerDomains) {
         $CustomerCount = $tenantIds.count
         try {
-        #Handels error "C:\Users\jordanf\AppData\Local\Temp\tmpEXO_cw4siuc3.dr5\exchange.format.ps1xml missing"
-        if(Get-InstalledModule ExchangeOnlineManagement){
-        Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
-        $Spam = Get-HostedContentFilterPolicy
-        $Malware = Get-MalwareFilterPolicy
-        $Quarantine = Get-QuarantinePolicy
-        $DKIM = Get-DkimSigningConfig
-        # $Domains = Get-AcceptedDomain
+            #Handels error "C:\Users\jordanf\AppData\Local\Temp\tmpEXO_cw4siuc3.dr5\exchange.format.ps1xml missing"
+            if(Get-InstalledModule ExchangeOnlineManagement){
+            Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
+            $Spam = Get-HostedContentFilterPolicy
+            $Malware = Get-MalwareFilterPolicy
+            $Quarantine = Get-QuarantinePolicy
+            $DKIM = Get-DkimSigningConfig
+            $Domain = Get-AcceptedDomain
         # $DMARC = foreach ($Domain in $Domains) {
             # (Get-DMARCRecord  $Domain) }
-        [pscustomobject]@{
+            [pscustomobject]@{
             'Spam - Company Domain' = ($CustomerDomain -join ', ')
             'Spam - Identity' = ($Spam.Identity -join ', ')
             'Spam - MarkAsSpamNdrBackscatter' = ($Spam.MarkAsSpamNdrBackscatter -join ', ')
@@ -102,24 +103,34 @@ Function Mainscript {
             'DKIM - Identity' = ($DKIM.Name -join ', ')
             'DKIM - Enabled' = ($DKIM.Enabled -join ', ')
             # 'DMARC - DMARC' = ($DMARC -join ', ')
+            }| Export-CSV -Path $csvFile -NoTypeInformation -Append
+            Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo / $CustomerCount"
+            Start-Sleep -Milliseconds 50
+            $TenantNo++
+            $Spam = $null
+            $Malware = $null
+            $Quarantine = $null
+            $DKIM = $null
+            $Domain = $null
+            Remove-Module ExchangeOnlineManagement
             }
-        Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo / $CustomerCount"
-        Start-Sleep -Milliseconds 50
-        $TenantNo++
+            else{
+                ConnectTo-EXO
+                Mainscript
+            }
+            }
+            catch {
+                Write-Host "Error occurred for tenant: $CustomerDomain"
+                Write-Host $_.Exception.Message
+            }
+            }
+
+            Remove-Variable -Name CustomerDomains
+
+
+            }
+
         }
-        else{
-            
-            ConnectTo-EXO
-            Mainscript
-        }
-        }
-        catch {
-            Write-Host "Error occurred for tenant: $CustomerDomain"
-            Write-Host $_.Exception.Message
-        }
-        }
-    }
-    }
 
     }
 
@@ -133,7 +144,7 @@ $directory = Split-Path -Path $csvFile
 ConnectTo-MSOnline
 ConnectTo-EXO
 $tenantIds = Get-MsolPartnerContract -All | Select-Object -ExpandProperty TenantId
-Mainscript | Export-CSV -Path $csvFile -NoTypeInformation
+Mainscript
 
 
 
