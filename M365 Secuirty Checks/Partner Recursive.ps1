@@ -61,7 +61,11 @@ Function Mainscript {
     $CustomerDomains = Get-MsolDomain -TenantId $tenantId | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
 
     foreach ($CustomerDomain in $CustomerDomains) {
-        Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
+        $CustomerCount = $tenantIds.count
+        try {
+        #Handels error "C:\Users\jordanf\AppData\Local\Temp\tmpEXO_cw4siuc3.dr5\exchange.format.ps1xml missing"
+        if(Get-InstalledModule ExchangeOnlineManagement){
+            Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
         $Spam = Get-HostedContentFilterPolicy
         $Malware = Get-MalwareFilterPolicy
         $Quarantine = Get-QuarantinePolicy
@@ -86,7 +90,7 @@ Function Mainscript {
             'Malware - Policy Last Changed' = ($Malware.WhenChanged -join ', ')
             'Malware - Quaratine Tag' = ($Malware.QuarantineTag -join ', ')
             'Quarantine - Identity' = ($Quarantine.Name -join ', ')
-            'Quarantine - End User Permissions' = ($Quarantine.EndUserQuarantinePermissions -join ', ')
+            'Quarantine - End User Permissions' = ($Quarantine.EndUserQuarantinePermissions -join ';')
             'Quarantine - Notification' = ($Quarantine.ESNEnabled -join ', ')
             'Domain - Domain Name' = ($Domain.Name -join ', ')
             'Domain - Domain Enabled?' = ($Domain.IsValid -join ', ')
@@ -94,9 +98,20 @@ Function Mainscript {
             'DKIM - Enabled' = ($DKIM.Enabled -join ', ')
             # 'DMARC - DMARC' = ($DMARC -join ', ')
             }
-        Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo"
+        Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo / $CustomerCount"
         Start-Sleep -Milliseconds 50
         $TenantNo++
+        }
+        else{
+            
+            ConnectTo-EXO
+            Mainscript
+        }
+        }
+        catch {
+            Write-Host "Error occurred for tenant: $CustomerDomain"
+            Write-Host $_.Exception.Message
+        }
         }
     }
     }
@@ -105,7 +120,7 @@ Function Mainscript {
 
 # ConnectTo-DMARC
 $UPN = Read-Host "What is your email?"
-$csvFile = "C:\Files\Test.csv"
+$csvFile = "C:\Files\SecurityExport.csv"
 $directory = Split-Path -Path $csvFile
     if (-not (Test-Path -Path $directory)) {
     New-Item -ItemType Directory -Path $directory | Out-Null
