@@ -51,26 +51,20 @@ Function ConnectTo-DMARC {
         } 
     }
 }
-Function Mainscript {
-    
-    Process {
-    # Create the directory if it doesn't exist
-    $TenantNo = 1
-    # Output the properties to the CSV file
-    $batchSize = 10  # Set the desired batch siz
-    # Split the array into smaller chunks$
-    $chunks = for ($i = 0; $i -lt $TenantIds.Count; $i += $batchSize) {
-    $TenantIds[$i..($i + $batchSize - 1)]
-}
-    foreach ($chunk in $chunks) {
-    $CustomerDomains = Get-MsolDomain -TenantId $chunk | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
-    
 
-    foreach ($CustomerDomain in $CustomerDomains) {
-        $CustomerCount = $tenantIds.count
+Function Get-TenantData {
+    
+    
+    $ScriptBlock = {
+        param (
+            [string]$CustomerDomain,
+            [string]$UPN,
+            [string]$csvFile,
+            [int]$TenantNo,
+            [int]$CustomerCount
+        )
+
         try {
-            #Handels error "C:\Users\jordanf\AppData\Local\Temp\tmpEXO_cw4siuc3.dr5\exchange.format.ps1xml missing"
-            if(Get-InstalledModule ExchangeOnlineManagement){
             Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
             $Spam = Get-HostedContentFilterPolicy
             $Malware = Get-MalwareFilterPolicy
@@ -104,38 +98,55 @@ Function Mainscript {
             'DKIM - Enabled' = ($DKIM.Enabled -join ', ')
             # 'DMARC - DMARC' = ($DMARC -join ', ')
             }| Export-CSV -Path $csvFile -NoTypeInformation -Append
-            Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo / $CustomerCount"
+            
+            
             Start-Sleep -Milliseconds 50
-            $TenantNo++
-            $Spam = $null
-            $Malware = $null
-            $Quarantine = $null
-            $DKIM = $null
-            $Domain = $null
-            Remove-Module ExchangeOnlineManagement
-            }
-            else{
-                ConnectTo-EXO
-                Mainscript
-            }
+            
+        
             }
             catch {
                 Write-Host "Error occurred for tenant: $CustomerDomain"
                 Write-Host $_.Exception.Message
             }
-            }
+            
+        }
+    $Job = Start-Job -ScriptBlock $ScriptBlock -ArgumentList $CustomerDomain, $UPN, $csvFile, $CustomerCount, $TenantNo
+    $Job | Wait-Job | Receive-Job
+}
 
-            Remove-Variable -Name CustomerDomains
+            
+Function Mainscript {
+    
+    Process {
+    # Create the directory if it doesn't exist
+    
+    # Output the properties to the CSV file
+    $batchSize = 10  # Set the desired batch siz
+    # Split the array into smaller chunks$
+    $chunks = for ($i = 0; $i -lt $TenantIds.Count; $i += $batchSize) {
+    $TenantIds[$i..($i + $batchSize - 1)]
+}
+    foreach ($chunk in $chunks) {
+    $CustomerDomains = Get-MsolDomain -TenantId $chunk | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
+    
 
+    foreach ($CustomerDomain in $CustomerDomains) {
+        
+            Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo / $CustomerCount"
+           Get-TenantData -CustomerDomain $CustomerDomain -UPN $UPN -csvFile $csvFile -tenantIds $tenantIds
+            $TenantNo++
 
             }
 
         }
 
     }
+}
 
 # ConnectTo-DMARC
 $UPN = Read-Host "What is your email?"
+$TenantNo = 1
+$CustomerCount = $tenantIds.count
 $csvFile = "C:\Files\SecurityExport.csv"
 $directory = Split-Path -Path $csvFile
     if (-not (Test-Path -Path $directory)) {
