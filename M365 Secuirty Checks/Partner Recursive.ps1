@@ -52,6 +52,49 @@ Function ConnectTo-DMARC {
     }
 }
 
+Function Change-TenantData {
+    $ScriptBlock = {
+        param (
+            [string]$CustomerDomain,
+            [string]$UPN
+        )
+
+        try {
+            Connect-ExchangeOnline -UserPrincipalName $UPN -DelegatedOrganization $CustomerDomain
+            Enable-OrganizationCustomization
+            $companyName = Get-OrganizationConfig | Select-Object -ExpandProperty Displayname
+
+            
+            #Quaratine Policy 
+            $QuarantineName = "$companyName "+"DefaultPolicy"
+            if (Get-QuarantinePolicy -Identity $QuarantineName) {
+                Set-QuarantinePolicy -Name $QuarantineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
+            }
+            if (-not (Get-QuarantinePolicy -Identity $QuarantineName)) {
+                New-QuarantinePolicy -Name $QuarantineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
+            }
+
+            #Spam Policy
+            Set-HostedContentFilterPolicy -Identity "Default" -MarkAsSpamNdrBackscatter On -MarkAsSpamSpfRecordHardFail On -MarkAsSpamFromAddressAuthFail On -SpamQuarantineTag $QuarantineName -HighConfidenceSpamQuarantineTag $QuarantineName -PhishQuarantineTag $QuarantineName -HighConfidencePhishQuarantineTag $QuarantineName -BulkQuarantineTag $QuarantineName -HighConfidencePhishAction Quarantine -BulkSpamAction MoveToJmf -HighConfidenceSpamAction Quarantine -PhishSpamAction Quarantine -SpamAction MoveToJmf
+            
+            #Malware Policy
+            Set-MalwareFilterPolicy -Identity "Default" -EnableFileFilter $true -QuarantineTag $QuarantineName
+            
+        
+            
+            Start-Sleep -Milliseconds 50
+            
+        
+            }
+            catch {
+                Write-Host "Error occurred for tenant: $CustomerDomain"
+                Write-Host $_.Exception.Message
+            }
+            
+        }
+    $Job = Start-Job -ScriptBlock $ScriptBlock -ArgumentList $CustomerDomain, $UPN,
+    $Job | Wait-Job | Receive-Job
+}
 Function Get-TenantData {
     
     
@@ -116,8 +159,12 @@ Function Get-TenantData {
 
             
 Function Mainscript {
+
     
     Process {
+    Write-Host "Which Tool would you like to run? `nSecurity Report: 1`nSecurity Change: 2" -ForegroundColor Black -BackgroundColor Yellow
+    $answer = Read-Host "Selection:"
+    if($answer -match "[1]") {
     # Create the directory if it doesn't exist
     
     # Output the properties to the CSV file
@@ -141,6 +188,48 @@ Function Mainscript {
         }
 
     }
+    if($answer -match "[2]") {
+         # Create the directory if it doesn't exist
+    
+    # Output the properties to the CSV file
+    $batchSize = 10  # Set the desired batch siz
+    # Split the array into smaller chunks$
+    $chunks = for ($i = 0; $i -lt $TenantIds.Count; $i += $batchSize) {
+    $TenantIds[$i..($i + $batchSize - 1)]
+}
+    foreach ($chunk in $chunks) {
+    $CustomerDomains = Get-MsolDomain -TenantId $chunk | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
+    
+
+    foreach ($CustomerDomain in $CustomerDomains) {
+        
+             # Create the directory if it doesn't exist
+    
+    # Output the properties to the CSV file
+    $batchSize = 10  # Set the desired batch siz
+    # Split the array into smaller chunks$
+    $chunks = for ($i = 0; $i -lt $TenantIds.Count; $i += $batchSize) {
+    $TenantIds[$i..($i + $batchSize - 1)]
+}
+    foreach ($chunk in $chunks) {
+    $CustomerDomains = Get-MsolDomain -TenantId $chunk | Where-Object { $_.Name.EndsWith(".onmicrosoft.com") } | Select-Object -ExpandProperty Name
+    
+
+    foreach ($CustomerDomain in $CustomerDomains) {
+        
+            Write-Progress -Activity "Processing Users" -Status "Customer Number $TenantNo / $CustomerDomain"
+           Change-TenantData -CustomerDomain $CustomerDomain -UPN $UPN
+            $TenantNo++
+
+            }
+
+        }
+
+            }
+
+        }
+    }
+    }
 }
 
 # ConnectTo-DMARC
@@ -155,6 +244,7 @@ $directory = Split-Path -Path $csvFile
 ConnectTo-MSOnline
 ConnectTo-EXO
 $tenantIds = Get-MsolPartnerContract -All | Select-Object -ExpandProperty TenantId
+# Mainscript
 Mainscript
 
 
