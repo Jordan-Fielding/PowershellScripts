@@ -115,7 +115,7 @@ Function Get-Admins {
             where { $_.AdditionalProperties."@odata.type" -eq "#microsoft.graph.user" } | 
             % { Get-MgUser -userid $_.id | Where-Object { ($_.AssignedLicenses).count -gt 0 } }
         } | 
-        Select-Object @{Name = "Role"; Expression = { $role } }, DisplayName, UserPrincipalName, Mail, ObjectId | Sort-Object -Property Mail -Unique
+        Select-Object @{Name = "Role"; Expression = { $role } }, DisplayName, UserPrincipalName, Mail, ObjectId, MailboxType | Sort-Object -Property Mail -Unique
     
         return $admins
     }
@@ -289,13 +289,14 @@ Function Get-MFAStatusUsers {
         $users | ForEach {
       
             $mfaMethods = Get-MFAMethods -userId $_.id
-
+            $sharedmailboxcheck = Get-Mailbox -Identity $_.mail | Select-Object RecipientTypeDetails
             if ($withOutMFAOnly) {
                 if ($mfaMethods.status -eq "disabled") {
                     [PSCustomObject]@{
                         "Name"            = $_.DisplayName
                         Emailaddress      = $_.mail
                         UserPrincipalName = $_.UserPrincipalName
+                        "MailboxType"     = if ($sharedmailboxcheck -match "SharedMailbox"){$true} else {$false}
                         isAdmin           = if ($listAdmins -and ($admins.UserPrincipalName -match $_.UserPrincipalName)) { $true } else { "-" }
                         MFAEnabled        = $false
                         "Phone number"    = $mfaMethods.authPhoneNr
@@ -308,6 +309,7 @@ Function Get-MFAStatusUsers {
                     "Name"                  = $_.DisplayName
                     Emailaddress            = $_.mail
                     UserPrincipalName       = $_.UserPrincipalName
+                    "MailboxType"           = if ($sharedmailboxcheck -match "SharedMailbox"){$true} else {$false}
                     isAdmin                 = if ($listAdmins -and ($admins.UserPrincipalName -match $_.UserPrincipalName)) { $true } else { "-" }
                     "MFA Status"            = $mfaMethods.status
                     # "MFA Default type" = ""  - Not yet supported by MgGraph

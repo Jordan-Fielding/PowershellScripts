@@ -7,23 +7,27 @@ Function GetClientDetails {
     $companyName = Read-Host "Name:"
 }
 
-
 # This will Set the following Settings 
 # Backscatter = On | SPF Hard Fail = On | Spam from Address Auth Fail = On | Quaratine Tags for all actions | Actions for Quaratine
 Function SpamPolicy {
-    Set-HostedContentFilterPolicy -Identity "Default" -MarkAsSpamNdrBackscatter On -MarkAsSpamSpfRecordHardFail On -MarkAsSpamFromAddressAuthFail On -SpamQuarantineTag $QuaratineName -HighConfidenceSpamQuarantineTag $QuaratineName -PhishQuarantineTag $QuaratineName -HighConfidencePhishQuarantineTag $QuaratineName -BulkQuarantineTag $QuaratineName -HighConfidencePhishAction Quarantine -BulkSpamAction MoveToJmf -HighConfidenceSpamAction Quarantine -PhishSpamAction Quarantine -SpamAction MoveToJmf
+    Set-HostedContentFilterPolicy -Identity "Default" -MarkAsSpamNdrBackscatter On -MarkAsSpamSpfRecordHardFail On -MarkAsSpamFromAddressAuthFail On -SpamQuarantineTag $QuarantineName -HighConfidenceSpamQuarantineTag $QuarantineName -PhishQuarantineTag $QuarantineName -HighConfidencePhishQuarantineTag $QuarantineName -BulkQuarantineTag $QuarantineName -HighConfidencePhishAction Quarantine -BulkSpamAction MoveToJmf -HighConfidenceSpamAction Quarantine -PhishSpamAction Quarantine -SpamAction MoveToJmf
 }
 
+Function MalwarePolicy {
+    #Malware Policy
+    Set-MalwareFilterPolicy -Identity "Default" -EnableFileFilter $true -QuarantineTag "SSSAus DefaultPolicy"
+}
 
 # This will setup the Quaratine Policy with the <CompanyName>DefaultPolicy | End user Notifications to True | And allow the user too:
 # PermissionToAllowSender | PermissionToBlockSender | PermissionToRelease | PermissionToPreview | PermissionToDelete
 Function QuaratinePolicy {
-    $QuarantineName = "$companyName"+"DefaultPolicy"
+#Quaratine Policy 
+$QuarantineName = "$companyName "+"DefaultPolicy"
 if (Get-QuarantinePolicy -Identity $QuarantineName) {
-    Write-host "Yes $quarantineName"
+    Set-QuarantinePolicy -Name $QuarantineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
 }
 if (-not (Get-QuarantinePolicy -Identity $QuarantineName)) {
-    Write-Host "No"
+    New-QuarantinePolicy -Name "SSSAus DefaultPolicy" -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
 }
 
 # Set-QuarantinePolicy -Name $QuaratineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
@@ -33,5 +37,7 @@ Connect-ExchangeOnline
 GetClientDetails
 
 QuaratinePolicy
+SpamPolicy
+MalwarePolicy
 
 # SpamPolicy
