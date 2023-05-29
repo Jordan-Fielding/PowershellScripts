@@ -309,7 +309,7 @@ Function Get-MFAStatusUsers {
                     "Name"                  = $_.DisplayName
                     Emailaddress            = $_.mail
                     UserPrincipalName       = $_.UserPrincipalName
-                    "MailboxType"           = if ($sharedmailboxcheck -match "SharedMailbox"){$true} else {$false}
+                    "MailboxType"           = if ($sharedmailboxcheck -match "SharedMailbox"){"SHARED"} elseif( $sharedmailboxcheck -match "UserMailbox" ){"MAILBOX"} else {"UNDEFINED"}
                     isAdmin                 = if ($listAdmins -and ($admins.UserPrincipalName -match $_.UserPrincipalName)) { $true } else { "-" }
                     "MFA Status"            = $mfaMethods.status
                     # "MFA Default type" = ""  - Not yet supported by MgGraph
