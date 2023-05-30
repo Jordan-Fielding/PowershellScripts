@@ -4,7 +4,7 @@ Function SpamPolicy {
     #Specifies the Command to use for Checking
     $SpamPolicy = Get-HostedContentFilterPolicy -Identity "Default"
     #Specifies the settings and Values that needto be set
-    $settingsToCheck = @{
+    $SpamsettingsToCheck = @{
         MarkAsSpamNdrBackscatter = "On"
         MarkAsSpamSpfRecordHardFail = "On"
         MarkAsSpamFromAddressAuthFail = "On"
@@ -20,7 +20,7 @@ Function SpamPolicy {
         SpamAction = "MoveToJmf"
     }
     #Loops through each setting and checks if it is enabled, if not it enables it
-    foreach ($setting in $settingsToCheck.GetEnumerator()) {
+    foreach ($setting in $SpamsettingsToCheck.GetEnumerator()) {
         $property = $setting.Key
         $message = $setting.Value
         if ($SpamPolicy.$property -notmatch "$message") {
@@ -31,22 +31,87 @@ Function SpamPolicy {
         }
     }
 
-    Write-Host "All Settings Enabled!"
+    Write-Host "All Spam Settings Enabled!"
 }
 Function MalwarePolicy {
     #Malware Policy
     Set-MalwareFilterPolicy -Identity "Default" -EnableFileFilter $true -QuarantineTag "SSSAus DefaultPolicy"
 }
 
-Function PhishingPolicy{
-    $accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "ATP_ENTERPRISE"}
-    if($accountSKU -ne $null){
+Function PhishingPolicy {
+    $PhishingPolicy = Get-AntiPhishPolicy -Identity "Office365 AntiPhish Default"
+    $accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*ATP_ENTERPRISE*"}
 
+    
+    if($accountSKU -ne $null){
+        write-host "Yes"
+        $PhishATPsettingsToCheck = @{
+            PhishThresholdLevel = 1
+            EnableFirstContactSafetyTips = $true
+            EnableMailboxIntelligence = $true
+            EnableMailboxIntelligenceProtection = $true
+            EnableOrganizationDomainsProtection = $true
+            EnableSimilarDomainsSafetyTips = $true
+            EnableSimilarUsersSafetyTips = $true
+            EnableSpoofIntelligence = $true
+            EnableTargetedDomainsProtection = $true
+            EnableTargetedUserProtection = $true
+            EnableUnauthenticatedSender = $true
+            EnableUnusualCharactersSafetyTips = $true
+            EnableViaTag = $true
+            HonorDmarcPolicy = $true
+            MailboxIntelligenceProtectionAction = "Quarantine"
+            MailboxIntelligenceQuarantineTag = "$QuarantineName"
+            SpoofQuarantineTag = "$QuarantineName"
+            TargetedDomainProtectionAction = "Quarantine"
+            TargetedDomainQuarantineTag = "$QuarantineName"
+            TargetedUserProtectionAction = "Quarantine"
+            TargetedUserQuarantineTag = "$QuarantineName"
+
+        }
+        
+        foreach ($PhishATPsetting in $PhishATPsettingsToCheck.GetEnumerator()) {
+            $PhishATPproperty = $PhishATPsetting.Key
+            $PhishATPmessage = $PhishATPsetting.Value
+            if ($PhishingATPPolicy.$PhishATPproperty -notmatch $PhishATPmessage) {
+                Write-Host "$PhishATPproperty not enabled, Enabling now...."
+                $PhishATPparam = @{ Identity = "Office365 AntiPhish Default" }
+                $PhishATPparam.$PhishATPproperty = $PhishATPmessage
+                Set-AntiPhishPolicy @PhishATPparam
+            }
+        }
+        $domains = Get-AcceptedDomain
+        foreach ($domain in $domains) {
+            Set-AntiPhishPolicy -Identity "Office365 AntiPhish Default" -TargetedDomainsToProtect $domain
+            Write-Host "Protectibg Domain $domain"
+        }
     }
     if($accountSKU -eq $null){
         
-    }
+        $PhishsettingsToCheck = @{
+            EnableSpoofIntelligence = $true
+            EnableFirstContactSafetyTips = $true
+            EnableViaTag = $true
+            EnableUnauthenticatedSender = $true
+            AuthenticationFailAction = "Quarantine"
+            DmarcRejectAction = "Quarantine"
+            DmarcQuarantineAction = "Quarantine"
+            SpoofQuarantineTag = "$QuarantineName"
+        }
+        foreach ($Phishsetting in $PhishsettingsToCheck.GetEnumerator()) {
+            $Phishproperty = $Phishsetting.Key
+            $Phishmessage = $Phishsetting.Value
+            if ($PhishingPolicy.$Phishproperty -notmatch $Phishmessage) {
+                Write-Host "$Phishproperty not enabled, Enabling now...."
+                $Phishparam = @{ Identity = "Office365 AntiPhish Default" }
+                $Phishparam.$Phishproperty = $Phishmessage
+                Set-AntiPhishPolicy @Phishparam
+            }
+        }
 
+    }
+    
+    Write-Host "All Phishing Settings Enabled!"
 }
 
 # This will setup the Quaratine Policy with the <CompanyName>DefaultPolicy | End user Notifications to True | And allow the user too:
@@ -74,3 +139,4 @@ $companyName = Read-Host "Name:"
 QuaratinePolicy
 SpamPolicy
 MalwarePolicy
+PhishingPolicy
