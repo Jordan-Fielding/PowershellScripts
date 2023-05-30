@@ -44,7 +44,6 @@ Function PhishingPolicy {
 
     
     if($accountSKU -ne $null){
-        write-host "Yes"
         $PhishATPsettingsToCheck = @{
             PhishThresholdLevel = 1
             EnableFirstContactSafetyTips = $true
@@ -73,7 +72,7 @@ Function PhishingPolicy {
         foreach ($PhishATPsetting in $PhishATPsettingsToCheck.GetEnumerator()) {
             $PhishATPproperty = $PhishATPsetting.Key
             $PhishATPmessage = $PhishATPsetting.Value
-            if ($PhishingATPPolicy.$PhishATPproperty -notmatch $PhishATPmessage) {
+            if ($PhishingPolicy.$PhishATPproperty -notmatch "$PhishATPmessage") {
                 Write-Host "$PhishATPproperty not enabled, Enabling now...."
                 $PhishATPparam = @{ Identity = "Office365 AntiPhish Default" }
                 $PhishATPparam.$PhishATPproperty = $PhishATPmessage
@@ -83,7 +82,9 @@ Function PhishingPolicy {
         $domains = Get-AcceptedDomain
         foreach ($domain in $domains) {
             Set-AntiPhishPolicy -Identity "Office365 AntiPhish Default" -TargetedDomainsToProtect $domain
-            Write-Host "Protectibg Domain $domain"
+            Write-Host "Protecting Domain $domain"
+            }
+            
         }
     }
     if($accountSKU -eq $null){
@@ -107,13 +108,81 @@ Function PhishingPolicy {
                 $Phishparam.$Phishproperty = $Phishmessage
                 Set-AntiPhishPolicy @Phishparam
             }
-        }
+        
 
     }
     
     Write-Host "All Phishing Settings Enabled!"
 }
 
+Function SafeAttachmentsPolicy {
+    $SafeAttachmentsName = "$companyName "+"DefaultPolicy"
+    $SafeAttachmentsPolicy = Get-SafeAttachmentPolicy | Where-Object {$_.Identity -like "*Jorbella DefaultPolicy*"}
+    if ($SafeAttachmentsPolicy -ne $null) {
+        $SafeAttachmentssettingsToCheck = @{
+            Action = "DynamicDelivery"
+            ActionOnError = $true
+            QuarantineTag = "$QuarantineName"
+            Enable  = $true
+        }
+        foreach ($SAsetting in $SafeAttachmentssettingsToCheck.GetEnumerator()) {
+            $SAproperty = $SAsetting.Key
+            $SAmessage = $SAsetting.Value
+            if ($SafeAttachmentsPolicy.$SAproperty -notmatch $SAmessage) {
+                Write-Host "$SAproperty not enabled, Enabling now...."
+                $SAparam = @{ Identity = "$SafeAttachmentsName" }
+                $SAparam.$SAproperty = $SAmessage
+                Set-SafeAttachmentPolicy @SAparam
+            }
+        }
+    }
+    if ($SafeAttachmentsPolicy -eq $null) {
+        New-SafeAttachmentPolicy -Action "DynamicDelivery" -ActionOnError $true -QuarantineTag "$QuarantineName" -Enable $true
+    }
+    Write-Host "All Safe Attachment Settings Enabled!"
+}
+Function SafeAttachmentsRule {
+    $SafeAttachmentsRuleName = "$companyName "+"DefaultPolicy"
+    $SafeAttachmentsRule = Get-SafeAttachmentRule | Where-Object {$_.Identity -like "*Jorbella DefaultPolicy*"}
+
+    if ($SafeAttachmentsRule -ne $null) {
+        
+        $SafeAttachmentsRulesettingsToCheck = @{
+            SafeAttachmentPolicy = "$SafeAttachmentsName"
+
+        }
+        foreach ($SARsetting in $SafeAttachmentsRulesettingsToCheck.GetEnumerator()) {
+            $SARproperty = $SARsetting.Key
+            $SARmessage = $SARsetting.Value
+            if ($SafeAttachmentseRule.$SARproperty -notmatch $SARmessage) {
+                Write-Host "$SARproperty not enabled, Enabling now...."
+                $SARparam = @{ Identity = "$SafeAttachmentsRuleName" }
+                $SARparam.$SARproperty = $SARmessage
+                Set-SafeAttachmentRule @SARparam
+            }
+        }
+        $domains = Get-AcceptedDomain
+        foreach ($domain in $domains) {
+            
+            Set-SafeAttachmentRule -Identity $SafeAttachmentsRuleName -RecipientDomainIs $domain
+            Write-Host "Protecting Domain $domain"
+        }
+            
+        }
+    }
+    if ($SafeAttachmentsRule -eq $null) {
+        $currentLoggedInUser = Read-Host "Please input the GA email"
+        New-SafeAttachmentRule -name $SafeAttachmentsRuleName -SafeAttachmentPolicy $SafeAttachmentsRuleName -SentTo $currentLoggedInUser -Enabled $true
+        
+        
+        foreach ($domain in $domains) {
+            
+            Set-SafeAttachmentRule -Identity $SafeAttachmentsRuleName -RecipientDomainIs $domain
+            Write-Host "Protecting Domain $domain"
+        }
+    
+    Write-Host "All Safe Attachment Rules Enabled!"
+}
 # This will setup the Quaratine Policy with the <CompanyName>DefaultPolicy | End user Notifications to True | And allow the user too:
 # PermissionToAllowSender | PermissionToBlockSender | PermissionToRelease | PermissionToPreview | PermissionToDelete
 Function QuaratinePolicy {
@@ -140,3 +209,5 @@ QuaratinePolicy
 SpamPolicy
 MalwarePolicy
 PhishingPolicy
+SafeAttachmentsPolicy
+SafeAttachmentsRule
