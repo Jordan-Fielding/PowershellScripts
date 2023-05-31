@@ -1,5 +1,4 @@
-# This will Set the following Settings 
-# Backscatter = On | SPF Hard Fail = On | Spam from Address Auth Fail = On | Quaratine Tags for all actions | Actions for Quaratine
+
 Function SpamPolicy {
     #Specifies the Command to use for Checking
     $SpamPolicy = Get-HostedContentFilterPolicy -Identity "Default"
@@ -212,7 +211,6 @@ Function SafeLinksPolicy {
         }
         Write-Host "All Safe Links Settings Enabled!" -ForegroundColor Black -BackgroundColor Green
     }  
-
 Function SafeLinksRule {
         $SafeLinksRuleName = "$companyName "+"DefaultPolicy"
         $SafeLinksRule = Get-SafeLinksRule -identity $SafeLinksRuleName
@@ -256,8 +254,6 @@ Function SafeLinksRule {
             Write-Host "All Safe Links Rules Enabled!" -ForegroundColor Black -BackgroundColor Green
         }
         }
-# This will setup the Quaratine Policy with the <CompanyName>DefaultPolicy | End user Notifications to True | And allow the user too:
-# PermissionToAllowSender | PermissionToBlockSender | PermissionToRelease | PermissionToPreview | PermissionToDelete
 Function QuaratinePolicy {
 #Quaratine Policy 
 $QuarantineName = "$companyName "+"DefaultPolicy"
@@ -271,9 +267,6 @@ if ($QuarantinePolicy -notmatch "$QuarantineName") {
 
 # Set-QuarantinePolicy -Name $QuaratineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
 }
-Connect-MsolService
-Connect-ExchangeOnline
-
 Function SetSecurityPolicies {
     Process {
         QuaratinePolicy
@@ -286,9 +279,79 @@ Function SetSecurityPolicies {
         SafeLinksRule
     }
 }
+Function IdentityProtection {
+$accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*AAD_PREMIUM*"} 
 
+$CAParams =@(
+    @{
+        DisplayName = "Admins | All Cloud Apps | IdentityProtection: Enforce Azure MFA on Directory Roles"
+        State = "EnabledForReportingButNotEnforced"
+        Conditions = @{
+            ClientAppTypes = @(
+                "mobileAppsAndDesktopClients"
+                "browser"
+
+            )
+            Applications = @{
+                includeApplications = @(
+                    'All'
+                )
+            }
+            Users = @{
+                IncludeRoles = @(
+                    #Global Admin
+                    "fdd7a751-b60b-444a-984c-02652fe8fa1c"
+                    #User Admin
+                    "fe930be7-5e62-47db-91af-98c3a49a38b1"
+                    #Conditional Access Admin
+                    "b1be1c3e-b65d-4f19-8427-f6fa0d97feb9"
+                    #Authentication Admin
+                    "c4e39bd9-1100-46d3-8c65-fb160da0071f"
+                    #PIM Role Admin
+                    "e8611ab8-c189-46e8-94e1-60213ab1f814"
+
+
+
+
+            )
+        }
+            
+        
+        }
+        GrantControls = @{
+            Operator = "OR"
+            BuiltInControls = @(
+                "mfa"
+            )
+        }
+        SessionControls = @{
+            PersistentBrowser = @{
+                isEnabled = $true
+                Mode = "never"
+            }
+            
+        }
+    }
+    
+)
+if ($accountSKU -ne $null){
+
+# Iterate over each object in CAParams
+    foreach ($policyParams in $CAParams) {
+        New-MgIdentityConditionalAccessPolicy -BodyParameter $policyParams
+    }
+}
+if ($accountSKU -eq $null){
+    
+}
+}
+
+Connect-MsolService
+Connect-ExchangeOnline
+Connect-MgGraph -Scopes "User.Read.All, UserAuthenticationMethod.Read.All, Directory.Read.All, Group.Read.All, IdentityProvider.Read.All, Policy.Read.All, Policy.ReadWrite.ConditionalAccess, Directory.AccessAsUser.All"
 Write-Host "What is the Companys Name? (Keep Name as a Whole Word, No Spaces)" -ForegroundColor Black -BackgroundColor Yellow
 $companyName = Read-Host "Name:"
 $currentLoggedInUser = Read-Host "Please input the GA email"
 #Runs Tests and Checks
-SetSecurityPolicies
+
+IdentityProtection
