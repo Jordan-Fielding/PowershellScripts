@@ -280,9 +280,90 @@ Function SetSecurityPolicies {
     }
 }
 Function IdentityProtection {
-New-MgGroup -DisplayName 'Security- CA Exclude from all Policies' -MailNickName 'testgroup' -MailEnabled:$False -SecurityEnabled
+$CentraNamedLocationName = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq 'Centra Offices'" | Select-Object -expandproperty Id
+
+$CompanyNameLocationName = "'$companyName'Office"
+
+$OfficeNameLocationName = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq '$CompanyNameLocationName'" | Select-Object -expandproperty Id
+
+Write-Host "Whats is the Clients IP Address, use the Subnet /32"
+$ComapnyIP = Read-Host "IP"
+$CentraIPLocationparams = @{
+        "@odata.type" = "#microsoft.graph.ipNamedLocation"
+        DisplayName = "Centra Offices"
+        IsTrusted = $true
+        IpRanges = @(
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "103.74.67.56/32"
+                
+            }
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "10.10.0.187/32"
+                
+            }
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "103.74.66.128/32"
+                
+            }
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "103.74.66.204/32"
+                
+            }
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "103.74.66.70/32"
+                
+            }
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "103.133.239.102/32"
+                
+            }
+            @{
+                "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+                CidrAddress = "103.246.28.33/32"
+                
+            }
+            
+        )
+}
+$CompanyIPLocationparams = @{
+    "@odata.type" = "#microsoft.graph.ipNamedLocation"
+    DisplayName = $CompanyNameLocationName
+    IsTrusted = $true
+    IpRanges = @(
+    @{
+        "@odata.type" = "#microsoft.graph.iPv4CidrRange"
+        CidrAddress = "$ComapnyIP"
+    }
+    
+)
+}
+
+if($CentraNamedLocationName -eq $null){
+    New-MgIdentityConditionalAccessNamedLocation -BodyParameter $CentraIPLocationparams
+}
+if($OfficeNameLocationName -eq $null){
+    New-MgIdentityConditionalAccessNamedLocation -BodyParameter $CompanyIPLocationparams
+}
+
+
+# $CentraOfficeID = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq 'Centra Office's'" | Select-Object -expandproperty Id
+# $CompanyID = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq 'Centra Office's'" | Select-Object -expandproperty Id
+
+
 $CAExcludedGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- CA Exclude from all Policies'" | Select-object -expandproperty Id
-write-host $CAExcludedGroup
+if($CAExcludedGroupID -eq $null){
+New-MgGroup -DisplayName 'Security- CA Exclude from all Policies' -MailNickName 'testgroup' -MailEnabled:$False -SecurityEnabled
+}
+$CAGAOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- GA Admins for CA'" | Select-object -expandproperty Id
+if($CAGAOnlyGroup -eq $null){
+    New-MgGroup -DisplayName 'Security- GA Admins for CA' -MailNickName 'testgroup' -MailEnabled:$False -SecurityEnabled
+    }
 $accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*AAD_PREMIUM*"} 
 
 $CAParams =@(
@@ -431,13 +512,52 @@ $CAParams =@(
             
         }
     }
+    # @{  
+    #     DisplayName = "Admins | All Cloud Apps | Require MFA ALL Admin Roles"
+    #     State = "EnabledForReportingButNotEnforced"
+    #     Conditions = @{
+    #         Applications = @{
+    #             includeApplications = @(
+    #                 'All'
+    #             )
+    #         }
+    #         Users = @{
+    #            IncludeGroups = "$CAGAOnlyGroupID"
+    #            ExcludeGroups = "$CAExcludedGroupID"
+    #     }
+            
+        
+    #     }
+    #     GrantControls = @{
+    #         Operator = "OR"
+    #         BuiltInControls = @(
+    #             "mfa"
+    #         )
+    #     }
+    #     SessionControls = @{
+    #         PersistentBrowser = @{
+    #             isEnabled = $true
+    #             Mode = "never"
+    #         }
+            
+    #     }
+    # }
     
 )
 if ($accountSKU -ne $null){
 
 # Iterate over each object in CAParams
     foreach ($policyParams in $CAParams) {
+        $CAName = $policyParams.DisplayName
+        $CACheck = Get-MgIdentityConditionalAccessPolicy -Filter "DisplayName eq '$CAName'"
+        
+        if($CACheck -eq $null){
         New-MgIdentityConditionalAccessPolicy -BodyParameter $policyParams
+        }
+        
+        if($CACheck -ne $null){
+            Write-Host "CA Policy $CAName Already Exists"
+        }
     }
 }
 if ($accountSKU -eq $null){
@@ -445,12 +565,12 @@ if ($accountSKU -eq $null){
 }
 }
 
-Connect-MsolService
-Connect-ExchangeOnline
-Connect-MgGraph -Scopes "User.Read.All, UserAuthenticationMethod.Read.All, Directory.Read.All, Group.Read.All, IdentityProvider.Read.All, Policy.Read.All, Policy.ReadWrite.ConditionalAccess, Directory.AccessAsUser.All"
-Write-Host "What is the Companys Name? (Keep Name as a Whole Word, No Spaces)" -ForegroundColor Black -BackgroundColor Yellow
-$companyName = Read-Host "Name:"
-$currentLoggedInUser = Read-Host "Please input the GA email"
+# Connect-MsolService
+# Connect-ExchangeOnline
+# Connect-MgGraph -Scopes "User.Read.All, UserAuthenticationMethod.Read.All, Directory.Read.All, Group.Read.All, IdentityProvider.Read.All, Policy.Read.All, Policy.ReadWrite.ConditionalAccess, Directory.AccessAsUser.All"
+# Write-Host "What is the Companys Name? (Keep Name as a Whole Word, No Spaces)" -ForegroundColor Black -BackgroundColor Yellow
+# $companyName = Read-Host "Name:"
+# $currentLoggedInUser = Read-Host "Please input the GA email"
 #Runs Tests and Checks
 
 IdentityProtection
