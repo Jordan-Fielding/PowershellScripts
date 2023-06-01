@@ -1,4 +1,33 @@
+Write-Host "What is the Companys Name? (Keep Name as a Whole Word, No Spaces)" -ForegroundColor Black -BackgroundColor Yellow
+$companyName = Read-Host "Name:"
+Write-Host "What is the Global Admins Email?" -ForegroundColor Black -BackgroundColor Yellow
+$currentLoggedInUser = Read-Host "Please input the GA email"
+Write-Host "Whats is the Clients IP Address, use the Subnet /32"
+$CompanyIP = Read-Host "IP"
 
+$SafeLinksRuleName = "$companyName "+"DefaultPolicy"
+$SafeAttachmentsName = "$companyName "+"DefaultPolicy"
+$SafeAttachmentsRuleName = "$companyName "+"DefaultPolicy"
+$QuarantineName = "$companyName "+"DefaultPolicy"
+$SafeLinksName = "$companyName "+"DefaultPolicy"
+$CentraOffice = "Centra Offices"
+$CompanyNameLocationName = "$companyName Office"
+$TrustedCountriesLocationName = "$companyName Office"
+Function DisconnectSessions {
+    Write-host "DISCONNECTING PERVIOUS SESSIONS" -ForegroundColor Black -BackgroundColor Red
+    #Disconnect From Services
+    Disconnect-ExchangeOnline
+    Disconnect-MgGraph
+    }
+Function QuaratinePolicy {
+    #Quaratine Policy 
+    
+    $QuarantinePolicy = Get-QuarantinePolicy -Identity $QuarantineName
+    New-QuarantinePolicy -Name $QuarantineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
+    
+    
+    # Set-QuarantinePolicy -Name $QuaratineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
+    }
 Function SpamPolicy {
     #Specifies the Command to use for Checking
     $SpamPolicy = Get-HostedContentFilterPolicy -Identity "Default"
@@ -34,13 +63,15 @@ Function SpamPolicy {
 }
 Function MalwarePolicy {
     #Malware Policy
-    Set-MalwareFilterPolicy -Identity "Default" -EnableFileFilter $true -QuarantineTag "SSSAus DefaultPolicy"
+    Set-MalwareFilterPolicy -Identity "Default" -EnableFileFilter $true -QuarantineTag $QuarantineName
 
     Write-Host "All Malware Policies Enabled!" -ForegroundColor Black -BackgroundColor Green
 }
 Function PhishingPolicy {
     $PhishingPolicy = Get-AntiPhishPolicy -Identity "Office365 AntiPhish Default"
     $accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*ATP_ENTERPRISE*"}
+    # $accountSKU = $true
+
 
     
     if($accountSKU -ne $null){
@@ -115,13 +146,13 @@ Function PhishingPolicy {
     }
     }
 Function SafeAttachmentsPolicy {
-    $SafeAttachmentsName = "$companyName "+"DefaultPolicy"
+    
     $SafeAttachmentsPolicy = Get-SafeAttachmentPolicy | Where-Object {$_.Identity -like "*$SafeAttachmentsName*"}
     if ($SafeAttachmentsPolicy -ne $null) {
         $SafeAttachmentssettingsToCheck = @{
             Action = "DynamicDelivery"
             ActionOnError = $true
-            QuarantineTag = "$QuarantineName"
+            QuarantineTag = $QuarantineName
             Enable  = $true
         }
         foreach ($SAsetting in $SafeAttachmentssettingsToCheck.GetEnumerator()) {
@@ -136,12 +167,12 @@ Function SafeAttachmentsPolicy {
         }
     }
     if ($SafeAttachmentsPolicy -eq $null) {
-        New-SafeAttachmentPolicy -Name $SafeLinksName -Action "DynamicDelivery" -ActionOnError $true -QuarantineTag "$QuarantineName" -Enable $true
+        New-SafeAttachmentPolicy -Name $SafeAttachmentsName -Action "DynamicDelivery" -ActionOnError $true -QuarantineTag $QuarantineName -Enable $true
     }
     Write-Host "All Safe Attachment Settings Enabled!" -ForegroundColor Black -BackgroundColor Green
 }
 Function SafeAttachmentsRule {
-    $SafeAttachmentsRuleName = "$companyName "+"DefaultPolicy"
+    
     $SafeAttachmentsRule = Get-SafeAttachmentRule | Where-Object {$_.Identity -like "*$SafeAttachmentsRuleName*"}
 
     if ($SafeAttachmentsRule -ne $null) {
@@ -183,9 +214,10 @@ Function SafeAttachmentsRule {
     }
     }
 Function SafeLinksPolicy {
-        $SafeLinksName = "$companyName "+"DefaultPolicy"
+        
         $SafeLinksPolicy = Get-SafeLinksPolicy -Identity $SafeLinksName
-        if ($SafeLinksPolicy -match $SafeLinksName) {
+        if ($SafeLinksPolicy -ne $null) {
+            Write-Host "No"
             $SafeLinkssettingsToCheck = @{
                 AllowClickThrough = $false
                 DeliverMessageAfterScan = $false
@@ -200,26 +232,27 @@ Function SafeLinksPolicy {
                 $SLmessage = $SLsetting.Value
                 if ($SafeLinksPolicy.$SLproperty -notmatch $SLmessage) {
                     Write-Host "$SLproperty not enabled, Enabling now...." -ForegroundColor Black -BackgroundColor Yellow
-                    $SLparam = @{ Identity = "$SafeLinksName" }
+                    $SLparam = @{ Identity = $SafeLinksName }
                     $SLparam.$SLproperty = $SLmessage
                     Set-SafeLinksPolicy @SLparam
                 }
             }
         }
-        if ($SafeLinksPolicy -notmatch $SafeLinksName) {
-            New-SafeLinksPolicy -Name $SafeLinksName -AllowClickThrough $false -DeliverMessageAfterScan $false -EnableForInternalSenders $true -EnableSafeLinksForEmail $true -EnableSafeLinksForTeams $true -ScanUrls $true -TrackClicks $true -Enable $true
+        if ($SafeLinksPolicy -eq $null) {
+            
+            New-SafeLinksPolicy -Name $SafeLinksName -AllowClickThrough $false -DeliverMessageAfterScan $false -EnableForInternalSenders $true -EnableSafeLinksForEmail $true -EnableSafeLinksForTeams $true -ScanUrls $true -TrackClicks $true
         }
         Write-Host "All Safe Links Settings Enabled!" -ForegroundColor Black -BackgroundColor Green
     }  
 Function SafeLinksRule {
-        $SafeLinksRuleName = "$companyName "+"DefaultPolicy"
+        
         $SafeLinksRule = Get-SafeLinksRule -identity $SafeLinksRuleName
         
     
-        if ($SafeLinksRule -match $SafeLinksRuleName) {
+        if ($SafeLinksRule -ne $null) {
             
             $SafeLinksRulesettingsToCheck = @{
-                SafeLinksPolicy = "$SafeLinksName"
+                SafeLinksPolicy = $SafeLinksName
     
             }
             foreach ($SLRsetting in $SafeLinksRulesettingsToCheck.GetEnumerator()) {
@@ -227,7 +260,7 @@ Function SafeLinksRule {
                 $SLRmessage = $SLRsetting.Value
                 if ($SafeLinksRule.$SLRproperty -notmatch $SLRmessage) {
                     Write-Host "$SARproperty not enabled, Enabling now...." -ForegroundColor Black -BackgroundColor Yellow
-                    $SLRparam = @{ Identity = "$SafeLinksRuleName" }
+                    $SLRparam = @{ Identity = $SafeLinksRuleName }
                     $SLRparam.$SLRproperty = $SLRmessage
                     Set-SafeLinksRule @SLRparam
                 }
@@ -240,9 +273,9 @@ Function SafeLinksRule {
             }
                 
             }
-            if ($SafeLinksRule -notmatch $SafeLinksRuleName) {
+            if ($SafeLinksRule -eq $null) {
                 
-                New-SafeLinksRule -name $SafeLinksRuleName -SafeLinksPolicy $SafeLinksRuleName -SentTo $currentLoggedInUser -Enabled $true
+                New-SafeLinksRule -name $SafeLinksRuleName -SafeLinksPolicy $SafeLinksRuleName -SentTo $currentLoggedInUser
                 
                 
                 foreach ($domain in $domains) {
@@ -254,19 +287,7 @@ Function SafeLinksRule {
             Write-Host "All Safe Links Rules Enabled!" -ForegroundColor Black -BackgroundColor Green
         }
         }
-Function QuaratinePolicy {
-#Quaratine Policy 
-$QuarantineName = "$companyName "+"DefaultPolicy"
-$QuarantinePolicy = Get-QuarantinePolicy -Identity $QuarantineName
-if ($QuarantinePolicy -match "$QuarantineName") {
-    Set-QuarantinePolicy -Identity $QuarantineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
-}
-if ($QuarantinePolicy -notmatch "$QuarantineName") {
-    New-QuarantinePolicy -Name $QuarantineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
-}
 
-# Set-QuarantinePolicy -Name $QuaratineName -EndUserQuarantinePermissionsValue 63 -ESNEnabled $true
-}
 Function SetSecurityPolicies {
     Process {
         QuaratinePolicy
@@ -281,16 +302,19 @@ Function SetSecurityPolicies {
 }
 Function IdentityProtection {
 #Sets the MSP Offlice Location Name
-$CentraOffice = "Centra Offices"
+
 $CentraNamedLocationName = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq '$CentraOffice'" | Select-Object -expandproperty Id
 
 #Sets thhe Companys Location Name
-$CompanyNameLocationName = "$companyName Office"
+
 $OfficeNameLocationName = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq '$CompanyNameLocationName'" | Select-Object -expandproperty Id
 
+#Sets the Trusted Location Name
+
+$TrustedLocationName = Get-MgIdentityConditionalAccessNamedLocation -Filter "DisplayName eq '$TrustedCountriesLocationName'" | Select-Object -expandproperty Id
+
 #Sets the Comapany's IP Location Via a Read-Host
-Write-Host "Whats is the Clients IP Address, use the Subnet /32"
-$CompanyIP = Read-Host "IP"
+
 
 #Sets the MSP IP Locations Params for Named Locations
 $CentraIPLocationparams = @{
@@ -351,6 +375,17 @@ $CompanyIPLocationparams = @{
 )
 }
 
+#Sets the Trusted Countries Param for Named Locations
+$TrustedCountryParams = @{
+        "@odata.type" = "#microsoft.graph.countryNamedLocation"
+        DisplayName = "Trusted Countries"
+        CountriesAndRegions = @(
+            "AU"
+        )
+        IncludeUnknownCountriesAndRegions = $false
+    
+}
+
 #Checks if the MSP Location Already Exists
 if($CentraNamedLocationName -eq $null){
     New-MgIdentityConditionalAccessNamedLocation -BodyParameter $CentraIPLocationparams
@@ -359,6 +394,11 @@ if($CentraNamedLocationName -eq $null){
 #Checks if the Client Location Already Exists
 if($OfficeNameLocationName -eq $null){
     New-MgIdentityConditionalAccessNamedLocation -BodyParameter $CompanyIPLocationparams
+}
+
+#Checks if the Trausted Countries Already Exists
+If($TrustedLocationName -eq $null){
+    New-MgIdentityConditionalAccessNamedLocation -BodyParameter $TrustedCountryParams
 }
 
 #Checks if the CA excluded group exists and created it if not, then reassigns the new value if needed
@@ -376,7 +416,7 @@ if($CAGAOnlyGroupID -eq $null){
 $CAGAOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- GA Admins for CA'" | Select-object -expandproperty Id
 
 #Checks if AAD_PREMIUM is active on the Tenant and Assigns a Boolean Value
-$accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*AAD_PREMIUM*"} 
+$accountSKU = Get-MsolAccountSku | Where-Object {$_.AccountSkuId -like "*AAD_PREMIUM*"}
 
 
 #Sets the Params for the Coditional access policies
@@ -572,6 +612,165 @@ $CAParams =@(
             
         }
     }
+    @{  
+        DisplayName = "AllUsers | All Cloud Apps | AttackSurfaceReduction: Block International Login Attempts"
+        State = "EnabledForReportingButNotEnforced"
+        Conditions = @{
+            ClientAppTypes = @(
+                "mobileAppsAndDesktopClients"
+                "browser"
+            )
+            Applications = @{
+                includeApplications = @(
+                    'All'
+                )
+            }
+            Locations = @{
+                IncludeLocations = @(
+                    "All"
+                )
+                ExcludeLocations = @(
+                    "$TrustedLocationName"
+                )
+            }
+            Users = @{
+               IncludeUsers = @(
+                    "All"
+               )
+               ExcludeGroups = @(
+                "$CAExcludedGroupID"
+               ) 
+            }
+        
+        }
+        GrantControls = @{
+            Operator = "OR"
+            BuiltInControls = @(
+                "block"
+            )
+        }
+    }
+    @{  
+        DisplayName = "AllUsers | All Cloud Apps | AuthProtocols: Block Legacy Authentication Protocols"
+        State = "EnabledForReportingButNotEnforced"
+        Conditions = @{
+            ClientAppTypes = @(
+                "ExchangeActiveSync"
+                "Other"
+            )
+            Applications = @{
+                includeApplications = @(
+                    'All'
+                )
+            }
+            Users = @{
+               IncludeUsers = @(
+                    "All"
+               )
+               ExcludeGroups = @(
+                "$CAExcludedGroupID"
+               ) 
+            }
+        
+        }
+        GrantControls = @{
+            Operator = "OR"
+            BuiltInControls = @(
+                "block"
+            )
+        }
+    }
+    @{  
+        DisplayName = "AllUsers | All Cloud Apps | IdentityProtection: Enforce Azure MFA"
+        State = "EnabledForReportingButNotEnforced"
+        Conditions = @{
+            ClientAppTypes = @(
+                "mobileAppsAndDesktopClients"
+                "browser"
+            )
+            Applications = @{
+                includeApplications = @(
+                    'All'
+                )
+            }
+            Users = @{
+               IncludeUsers = @(
+                    "All"
+               )
+               ExcludeGroups = @(
+                "$CAExcludedGroupID"
+               ) 
+            }
+        
+        }
+        GrantControls = @{
+            Operator = "OR"
+            BuiltInControls = @(
+                "mfa"
+            )
+        }
+    }
+    @{  
+        DisplayName = "Guests | All Cloud Apps | DataProtection: Prevents Persistent Browser Sessions for Guest Users"
+        State = "EnabledForReportingButNotEnforced"
+        Conditions = @{
+            ClientAppTypes = @(
+                "browser"
+            )
+            Applications = @{
+                includeApplications = @(
+                    'All'
+                )
+            }
+            Users = @{
+                IncludeUsers = @(
+                    "GuestsOrExternalUsers"
+                )
+               ExcludeGroups = @(
+                "$CAExcludedGroupID"
+               ) 
+            }
+        
+        }
+        SessionControls = @{
+            PersistentBrowser = @{
+                isEnabled = $true
+                Mode = "never"
+            }
+            
+        }
+    }
+    @{  
+        DisplayName = "Guests | All Cloud Apps | IdentityProtection: Require MFA for guests "
+        State = "EnabledForReportingButNotEnforced"
+        Conditions = @{
+            ClientAppTypes = @(
+                "mobileAppsAndDesktopClients"
+                "browser"
+            )
+            Applications = @{
+                includeApplications = @(
+                    'All'
+                )
+            }
+            Users = @{
+                IncludeUsers = @(
+                    "GuestsOrExternalUsers"
+                )
+               ExcludeGroups = @(
+                "$CAExcludedGroupID"
+               ) 
+            }
+        
+        }
+        GrantControls = @{
+            Operator = "OR"
+            BuiltInControls = @(
+                "block"
+            )
+        }
+        
+    }
     
 )
 
@@ -581,32 +780,36 @@ if ($accountSKU -ne $null){
 # Iterate over each object in CAParams
     foreach ($policyParams in $CAParams) {
         $CAName = $policyParams.DisplayName
-        Write-host "TESTING + 570 $CAName"
         $CACheck = Get-MgIdentityConditionalAccessPolicy -Filter "DisplayName eq '$CAName'" | Select-Object -ExpandProperty Id
-        Write-Host "TESTING + 572 $CACheck"
         
         if($CACheck -eq $null){
         New-MgIdentityConditionalAccessPolicy -BodyParameter $policyParams
         }
         
         if($CACheck -ne $null){
-            Write-Host "CA Policy $CAName Already Exists"
+            Write-Host "CA Policy $CAName Already Exists" -ForegroundColor Black -BackgroundColor Yellow
         }
     }
 }
 
 #If AAD_PREMIUM Doesnt Exist
 if ($accountSKU -eq $null){
-    
-}
+    $SecurityDefaultsparams = @{
+        IsEnabled = $false
+    }
+    Update-MgPolicyIdentitySecurityDefaultEnforcementPolicy -BodyParameter $SecurityDefaultsparams
 }
 
-# Connect-MsolService
-# Connect-ExchangeOnline
-# Connect-MgGraph -Scopes "User.Read.All, UserAuthenticationMethod.Read.All, Directory.Read.All, Group.Read.All, IdentityProvider.Read.All, Policy.Read.All, Policy.ReadWrite.ConditionalAccess, Directory.AccessAsUser.All"
-# Write-Host "What is the Companys Name? (Keep Name as a Whole Word, No Spaces)" -ForegroundColor Black -BackgroundColor Yellow
-$companyName = Read-Host "Name:"
-# $currentLoggedInUser = Read-Host "Please input the GA email"
+Write-Host "Identity Protection Complete" -ForegroundColor Black -BackgroundColor Yellow
+}
+
+Connect-MsolService
+Connect-ExchangeOnline
+Connect-MgGraph -Scopes "User.Read.All, UserAuthenticationMethod.Read.All, Directory.Read.All, Group.Read.All, IdentityProvider.Read.All, Policy.Read.All, Policy.ReadWrite.ConditionalAccess, Directory.AccessAsUser.All"
+
+
 #Runs Tests and Checks
 
+SetSecurityPolicies
 IdentityProtection
+DisconnectSessions
