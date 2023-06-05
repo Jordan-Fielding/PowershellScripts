@@ -486,7 +486,7 @@ Function IdentityProtection {
         #Checks if the CA excluded group exists and created it if not, then reassigns the new value if needed
         $CAExcludedGroupIDCheck = Get-MGgroup -Filter "DisplayName eq 'Security- CA Exclude from all Policies'" | Select-object -expandproperty Id
         if($CAExcludedGroupIDCheck -eq $null){
-        New-MgGroup -DisplayName 'Security- CA Exclude from all Policies' -MailNickName 'testgroup' -MailEnabled:$False -SecurityEnabled
+        New-MgGroup -DisplayName 'Security- CA Exclude from all Policies' -MailNickName 'Security- CA Exclude from all Policies' -MailEnabled:$False -SecurityEnabled
         }
         $CAExcludedGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- CA Exclude from all Policies'" | Select-object -expandproperty Id
 
@@ -495,14 +495,38 @@ Function IdentityProtection {
         #Checks if the GA Admins for CA exists and created it if not, then reassigns the new value if needed
         $CAGAOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- GA Admins for CA'" | Select-object -expandproperty Id
         if($CAGAOnlyGroupID -eq $null){
-        New-MgGroup -DisplayName 'Security- GA Admins for CA' -MailNickName 'testgroup' -MailEnabled:$False -SecurityEnabled
+        New-MgGroup -DisplayName 'Security- GA Admins for CA' -MailNickName 'Security- GA Admins for CA' -MailEnabled:$False -SecurityEnabled
         }
         $CAGAOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- GA Admins for CA'" | Select-object -expandproperty Id
-    
+
+
+        
+        #Checks if the Service Accounts for CA exists and created it if not, then reassigns the new value if needed
+        $ServiceOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- Exclude Service Accounts'" | Select-object -expandproperty Id
+        if($ServiceOnlyGroupID -eq $null){
+        New-MgGroup -DisplayName 'Security- Exclude Service Accounts' -MailNickName 'Security- Exclude Service Accounts' -MailEnabled:$False -SecurityEnabled
+        }
+        $ServiceOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- Exclude Service Accounts'" | Select-object -expandproperty Id
+
+        #Checks if the International User for CA exists and created it if not, then reassigns the new value if needed
+        $InternationalUserOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- International User'" | Select-object -expandproperty Id
+        if($InternationalUserOnlyGroupID -eq $null){
+        New-MgGroup -DisplayName 'Security- International User' -MailNickName 'Security- International User' -MailEnabled:$False -SecurityEnabled
+        }
+        $InternationalUserOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- International User'" | Select-object -expandproperty Id
+
+
+        #Checks if the Travelling User for CA exists and created it if not, then reassigns the new value if needed
+        $TravellingUserOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- Travelling User'" | Select-object -expandproperty Id
+        if($TravellingUserOnlyGroupID -eq $null){
+        New-MgGroup -DisplayName 'Security- Travelling User' -MailNickName 'Security- Travelling User' -MailEnabled:$False -SecurityEnabled
+        }
+        $TravellingUserOnlyGroupID = Get-MGgroup -Filter "DisplayName eq 'Security- Travelling User'" | Select-object -expandproperty Id
   
     
         #Sets the Params for the Coditional access policies
         $CAParams =@(
+            #Admins | All Cloud Apps | IdentityProtection: Enforce Azure MFA on Directory Roles
             @{
                 DisplayName = "Admins | All Cloud Apps | IdentityProtection: Enforce Azure MFA on Directory Roles"
                 State = "EnabledForReportingButNotEnforced"
@@ -518,7 +542,11 @@ Function IdentityProtection {
                         )
                     }
                     Users = @{
-                        ExcludeGroups = "$CAExcludedGroupID"
+                        ExcludeGroups = @(
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
+                        
                         IncludeRoles = @(
                             #Global Admin
                             "fdd7a751-b60b-444a-984c-02652fe8fa1c"
@@ -553,6 +581,7 @@ Function IdentityProtection {
                     
                 }
             }
+            #Admins | All Cloud Apps | Require MFA ALL Admin Roles
             @{  
                 DisplayName = "Admins | All Cloud Apps | Require MFA ALL Admin Roles"
                 State = "EnabledForReportingButNotEnforced"
@@ -563,7 +592,10 @@ Function IdentityProtection {
                         )
                     }
                     Users = @{
-                        ExcludeGroups = "$CAExcludedGroupID"
+                        ExcludeGroups = @(
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
                         IncludeRoles = @(
                             "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3"
                             "c430b396-e693-46cc-96f3-db01bf8bb62a"
@@ -649,6 +681,7 @@ Function IdentityProtection {
                     
                 }
             }
+            #GlobalAdmins | All Cloud Apps | AttackSurfaceReduction: Block Non-Named IPs
             @{  
                 DisplayName = "GlobalAdmins | All Cloud Apps | AttackSurfaceReduction: Block Non-Named IPs"
                 State = "EnabledForReportingButNotEnforced"
@@ -676,8 +709,9 @@ Function IdentityProtection {
                         "$CAGAOnlyGroupID"
                     )
                     ExcludeGroups = @(
-                        "$CAExcludedGroupID"
-                    ) 
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
                     }
                 
                 }
@@ -695,6 +729,7 @@ Function IdentityProtection {
                     
                 }
             }
+            #AllUsers | All Cloud Apps | AttackSurfaceReduction: Block International Login Attempts
             @{  
                 DisplayName = "AllUsers | All Cloud Apps | AttackSurfaceReduction: Block International Login Attempts"
                 State = "EnabledForReportingButNotEnforced"
@@ -714,6 +749,8 @@ Function IdentityProtection {
                         )
                         ExcludeLocations = @(
                             "$TrustedLocationName"
+                            "$InternationalUserOnlyGroupID"
+                            "$TravellingUserOnlyGroupID"
                         )
                     }
                     Users = @{
@@ -721,8 +758,9 @@ Function IdentityProtection {
                             "All"
                     )
                     ExcludeGroups = @(
-                        "$CAExcludedGroupID"
-                    ) 
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        ) 
                     }
                 
                 }
@@ -733,6 +771,7 @@ Function IdentityProtection {
                     )
                 }
             }
+            #AllUsers | All Cloud Apps | AuthProtocols: Block Legacy Authentication Protocols
             @{  
                 DisplayName = "AllUsers | All Cloud Apps | AuthProtocols: Block Legacy Authentication Protocols"
                 State = "EnabledForReportingButNotEnforced"
@@ -751,8 +790,9 @@ Function IdentityProtection {
                             "All"
                     )
                     ExcludeGroups = @(
-                        "$CAExcludedGroupID"
-                    ) 
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
                     }
                 
                 }
@@ -763,6 +803,7 @@ Function IdentityProtection {
                     )
                 }
             }
+            #AllUsers | All Cloud Apps | IdentityProtection: Enforce Azure MFA
             @{  
                 DisplayName = "AllUsers | All Cloud Apps | IdentityProtection: Enforce Azure MFA"
                 State = "EnabledForReportingButNotEnforced"
@@ -781,8 +822,9 @@ Function IdentityProtection {
                             "All"
                     )
                     ExcludeGroups = @(
-                        "$CAExcludedGroupID"
-                    ) 
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
                     }
                 
                 }
@@ -793,6 +835,7 @@ Function IdentityProtection {
                     )
                 }
             }
+            #Guests | All Cloud Apps | DataProtection: Prevents Persistent Browser Sessions for Guest Users
             @{  
                 DisplayName = "Guests | All Cloud Apps | DataProtection: Prevents Persistent Browser Sessions for Guest Users"
                 State = "EnabledForReportingButNotEnforced"
@@ -809,9 +852,10 @@ Function IdentityProtection {
                         IncludeUsers = @(
                             "GuestsOrExternalUsers"
                         )
-                    ExcludeGroups = @(
-                        "$CAExcludedGroupID"
-                    ) 
+                        ExcludeGroups = @(
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
                     }
                 
                 }
@@ -823,8 +867,9 @@ Function IdentityProtection {
                     
                 }
             }
+            #Guests | All Cloud Apps | IdentityProtection: Require MFA for guests
             @{  
-                DisplayName = "Guests | All Cloud Apps | IdentityProtection: Require MFA for guests "
+                DisplayName = "Guests | All Cloud Apps | IdentityProtection: Require MFA for guests"
                 State = "EnabledForReportingButNotEnforced"
                 Conditions = @{
                     ClientAppTypes = @(
@@ -840,9 +885,10 @@ Function IdentityProtection {
                         IncludeUsers = @(
                             "GuestsOrExternalUsers"
                         )
-                    ExcludeGroups = @(
-                        "$CAExcludedGroupID"
-                    ) 
+                        ExcludeGroups = @(
+                            "$CAExcludedGroupID"
+                            "$ServiceOnlyGroupID"
+                        )
                     }
                 
                 }
