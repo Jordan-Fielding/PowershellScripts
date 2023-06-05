@@ -563,6 +563,7 @@ Function IdentityProtection {
                         )
                     }
                     Users = @{
+                        ExcludeGroups = "$CAExcludedGroupID"
                         IncludeRoles = @(
                             "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3"
                             "c430b396-e693-46cc-96f3-db01bf8bb62a"
