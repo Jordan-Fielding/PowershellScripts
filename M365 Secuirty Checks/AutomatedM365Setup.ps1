@@ -895,7 +895,7 @@ Function IdentityProtection {
             GrantControls = @{
                 Operator = "OR"
                 BuiltInControls = @(
-                    "block"
+                    "mfa"
                 )
             }
             
