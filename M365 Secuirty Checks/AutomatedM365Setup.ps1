@@ -749,8 +749,7 @@ Function IdentityProtection {
                     )
                     ExcludeLocations = @(
                         "$TrustedLocationName"
-                        "$InternationalUserOnlyGroupID"
-                        "$TravellingUserOnlyGroupID"
+                        
                     )
                 }
                 Users = @{
@@ -760,6 +759,8 @@ Function IdentityProtection {
                 ExcludeGroups = @(
                         "$CAExcludedGroupID"
                         "$ServiceOnlyGroupID"
+                        "$InternationalUserOnlyGroupID"
+                        "$TravellingUserOnlyGroupID"
                     ) 
                 }
             
